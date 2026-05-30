@@ -57,4 +57,11 @@
 #include "llm/providers/GeminiProvider.h"
 #include "llm/providers/OllamaProvider.h"
 
+// --- Feature B: MCP server (Phase 4). Requires ArduinoJson. ---
+#include "mcp/EdgeStore.h"
+#include "mcp/ResourceRegistry.h"
+#include "mcp/PromptRegistry.h"
+#include "mcp/McpServer.h"
+#include "mcp/McpHttpServer.h"  // on-device HTTP glue (guarded internally)
+
 #endif  // EDGELLM_H

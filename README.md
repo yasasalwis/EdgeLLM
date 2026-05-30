@@ -14,11 +14,12 @@ independent features**:
 
 Use either feature on its own — neither pulls in the other.
 
-> **Status: Phase 3 (Tool Calling) complete.** EdgeLLM can chat with Claude,
-> OpenAI, Gemini, Ollama and any OpenAI-compatible endpoint (blocking or
-> streaming), **and** run an on-device agent loop where the model calls tools you
-> register — read a sensor, drive a pin — and gets the results back. The MCP
-> server (Phase 4) comes next. See [Roadmap](#roadmap).
+> **Status: Phase 4 (MCP Server) complete.** Both headline features are now
+> built: the **LLM client** (chat + streaming + on-device agent loop across
+> Claude/OpenAI/Gemini/Ollama) **and** the **MCP server** that exposes your
+> device's tools, resources, and a built-in KV store to any MCP host (Claude
+> Desktop, MCP Inspector). Phase 5 is cross-board bring-up + provisioning +
+> hardening. See [Roadmap](#roadmap).
 
 ---
 
@@ -129,8 +130,10 @@ EdgeLLM.h ─ umbrella
  ├─ hal/         Platform detection, ISecretStore (+ Memory/NVS impls), ITimeSource (+ NTP),
  │               ArduinoConnection (TLS/plain), Serial log sink, millis clock
  ├─ tools/       ToolRegistry (fluent), Tool + JSON schema, ToolCallArgs, UrlGuard (SSRF)
- └─ llm/         Provider interface + Anthropic/OpenAI/Gemini/Ollama/OpenAI-compatible,
-                 LLMClient (blocking + streaming + agent loop), Conversation, Message
+ ├─ llm/         Provider interface + Anthropic/OpenAI/Gemini/Ollama/OpenAI-compatible,
+ │               LLMClient (blocking + streaming + agent loop), Conversation, Message
+ └─ mcp/         McpServer (JSON-RPC core), McpHttpServer (transport), EdgeStore (KV),
+                 ResourceRegistry, PromptRegistry
 ```
 
 Portable logic is Arduino-independent (depends only on the STL, which every
@@ -185,17 +188,43 @@ to a final answer (bounded by `agentOptions().maxIterations`). Tool calling is
 implemented for **OpenAI and Anthropic** today; Gemini/Ollama tool calling is the
 next increment.
 
+## Expose your device to LLM hosts (Feature B, MCP server)
+
+```cpp
+edge::ToolRegistry tools;        // the SAME registry the agent loop uses
+tools.addTool("get_temp", "Read temperature").onCall(/* ... */);
+
+edge::EdgeStore store;           // built-in KV, readable/writable over MCP
+edge::McpServer mcp("EdgeLLM-Device", EDGELLM_VERSION);
+edge::McpHttpServer http(mcp, 8080, "/mcp");
+
+void setup() {
+  mcp.setToolRegistry(&tools);
+  mcp.setStore(&store, /*allowWrites=*/true);   // expose kv_set/kv_delete
+  // mcp.setAuthToken("a-long-token");           // optional bearer auth
+  http.begin();                                  // after WiFi is up
+}
+void loop() { http.handle(); }                   // point a host at http://<ip>:8080/mcp
+```
+
+Connect from the [MCP Inspector](https://github.com/modelcontextprotocol/inspector)
+(`npx @modelcontextprotocol/inspector`, Streamable HTTP transport) or any MCP
+host. **Writes are deny-by-default**: a mutating tool stays hidden until you call
+`.allowWrite()`, and the KV write tools require `allowWrites=true`.
+
 ## Roadmap
 
 - **Phase 1 — Foundation & Transport** ✅
 - **Phase 2 — LLM client** ✅ — Anthropic, OpenAI, Gemini, Ollama,
   OpenAI-compatible; blocking + streaming; conversation history.
-- **Phase 3 — Tool calling** ✅ *(this release)* — shared `ToolRegistry`,
-  on-device agent loop (OpenAI + Anthropic), SSRF guard.
-- **Phase 4 — MCP server:** full JSON-RPC 2.0 / Streamable HTTP, tools,
-  resources, prompts, built-in `EdgeStore` KV, deny-by-default writes, auth.
+- **Phase 3 — Tool calling** ✅ — shared `ToolRegistry`, on-device agent loop
+  (OpenAI + Anthropic), SSRF guard.
+- **Phase 4 — MCP server** ✅ *(this release)* — JSON-RPC 2.0 / Streamable HTTP,
+  tools/resources/prompts, built-in `EdgeStore` KV, deny-by-default writes,
+  bearer auth.
 - **Phase 5 — Cross-board + provisioning + hardening:** Uno R4 / NINA / Portenta
-  bring-up, provisioning portal, security pass, release.
+  bring-up, persistent secret/KV backends beyond ESP32, provisioning portal,
+  Gemini/Ollama tool calling, MCP server-push SSE, final security pass, release.
 
 ## Security
 

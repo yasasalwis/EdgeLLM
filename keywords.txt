@@ -45,6 +45,14 @@ ToolCall	KEYWORD1
 AgentTurn	KEYWORD1
 AgentOptions	KEYWORD1
 ParamType	KEYWORD1
+McpServer	KEYWORD1
+McpHttpServer	KEYWORD1
+McpReply	KEYWORD1
+EdgeStore	KEYWORD1
+ResourceRegistry	KEYWORD1
+PromptRegistry	KEYWORD1
+Resource	KEYWORD1
+Prompt	KEYWORD1
 
 #######################################
 # Methods and Functions (KEYWORD2)
@@ -94,6 +102,16 @@ validate	KEYWORD2
 agentOptions	KEYWORD2
 isUrlAllowed	KEYWORD2
 isBlockedHost	KEYWORD2
+addResource	KEYWORD2
+addPrompt	KEYWORD2
+handlePost	KEYWORD2
+setToolRegistry	KEYWORD2
+setResourceRegistry	KEYWORD2
+setPromptRegistry	KEYWORD2
+setStore	KEYWORD2
+setAuthToken	KEYWORD2
+setPersistence	KEYWORD2
+setInstructions	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)

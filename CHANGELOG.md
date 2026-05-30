@@ -3,6 +3,38 @@
 All notable changes to EdgeLLM are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow SemVer.
 
+## [0.4.0] — Phase 4: MCP Server
+
+### Added
+- **`McpServer`** — Model Context Protocol server core (JSON-RPC 2.0, pure
+  string-in/string-out so it's fully host-testable). Implements `initialize`,
+  `ping`, `notifications/*`, `tools/list`, `tools/call`, `resources/list`,
+  `resources/templates/list`, `resources/read`, `prompts/list`, `prompts/get`,
+  with batch support, JSON-RPC error codes, capability negotiation, protocol
+  version echo, and `Mcp-Session-Id` sessions.
+- **`McpHttpServer`** — on-device Streamable-HTTP transport over the portable
+  `WiFiServer` (POST → JSON response; 405 on GET per spec; size/timeout caps).
+- **`EdgeStore`** — built-in RAM KV datastore with bounded size and optional NVS
+  persistence (manifest-based), auto-exposed over MCP as `kv://<key>` resources
+  (read) and `kv_set` / `kv_delete` tools (write).
+- **`ResourceRegistry`** and **`PromptRegistry`** — fluent, handler-based
+  resources and prompts.
+- **Shared registry:** the MCP server consumes the same Phase 3 `ToolRegistry`,
+  so one tool serves both the agent loop and networked hosts.
+- **Example `07_McpServer`** — ESP32 exposes get_temp/set_led tools, a device
+  status resource, and the persistent KV store; connect with MCP Inspector or
+  Claude Desktop at `http://<ip>:8080/mcp`.
+- **Tests:** +27 native tests (EdgeStore caps/persistence, full protocol surface,
+  resources/prompts) for 122 total.
+
+### Security
+- **Mutating tools are deny-by-default**: excluded from `tools/list` and refused
+  by `tools/call` unless `allowWrite()` is set; `kv_set`/`kv_delete` are off
+  unless `setStore(store, allowWrites=true)`. Tools are annotated with
+  `readOnlyHint`/`destructiveHint`.
+- **Optional bearer-token auth** gates the whole endpoint (401 on mismatch).
+- Bounded request body, header-line, and read-timeout caps in the HTTP glue.
+
 ## [0.3.0] — Phase 3: Tool Calling & Agent Loop
 
 ### Added

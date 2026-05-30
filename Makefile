@@ -25,6 +25,10 @@ PURE_SRC := \
   src/tools/ToolCallArgs.cpp \
   src/tools/ToolRegistry.cpp \
   src/tools/UrlGuard.cpp \
+  src/mcp/EdgeStore.cpp \
+  src/mcp/ResourceRegistry.cpp \
+  src/mcp/PromptRegistry.cpp \
+  src/mcp/McpServer.cpp \
   src/llm/Conversation.cpp \
   src/llm/LLMClient.cpp \
   src/llm/providers/AnthropicProvider.cpp \
@@ -46,7 +50,10 @@ TEST_SRC := \
   test/suites/test_tools.cpp \
   test/suites/test_provider_tools.cpp \
   test/suites/test_agentloop.cpp \
-  test/suites/test_urlguard.cpp
+  test/suites/test_urlguard.cpp \
+  test/suites/test_edgestore.cpp \
+  test/suites/test_mcp_server.cpp \
+  test/suites/test_mcp_resources.cpp
 
 BIN := test/bin/edgellm_tests
 
