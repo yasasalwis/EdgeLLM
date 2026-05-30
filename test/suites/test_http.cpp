@@ -64,3 +64,29 @@ TEST(serialize_defaults_empty_path_to_root) {
   const std::string wire = serializeRequest(req);
   CHECK(wire.find("GET / HTTP/1.1\r\n") == 0);
 }
+
+TEST(serialize_strips_crlf_to_prevent_header_injection) {
+  HttpRequest req;
+  req.host = "h";
+  req.method = "GET";
+  // An injected header value attempting to add a forged header + smuggled body.
+  req.addHeader("X-Evil", "value\r\nX-Injected: 1\r\n\r\nGET /smuggled HTTP/1.1");
+  const std::string wire = serializeRequest(req);
+  // No forged header LINE and no smuggled request LINE exist (the CR/LF that
+  // would create them are stripped). The literal text may remain harmlessly
+  // inside the single sanitized value.
+  CHECK(wire.find("\r\nX-Injected:") == std::string::npos);
+  CHECK(wire.find("\r\nGET /smuggled") == std::string::npos);
+  // The header is still emitted, just collapsed onto one line.
+  CHECK(wire.find("X-Evil: valueX-Injected: 1GET /smuggled HTTP/1.1\r\n") != std::string::npos);
+}
+
+TEST(serialize_strips_crlf_in_path) {
+  HttpRequest req;
+  req.host = "h";
+  req.path = "/ok\r\nHost: evil.com";
+  const std::string wire = serializeRequest(req);
+  CHECK(wire.find("GET /okHost: evil.com HTTP/1.1\r\n") == 0);
+  // No second Host line was injected by the path.
+  CHECK(wire.find("\r\nHost: evil.com\r\n") == std::string::npos);
+}

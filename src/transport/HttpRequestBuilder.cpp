@@ -9,6 +9,20 @@ bool hasHeader(const HttpRequest& req, const std::string& name) {
   return req.header(name) != nullptr;
 }
 
+// Removes CR and LF so a stray (or attacker-influenced) value can never inject
+// extra request lines or headers (HTTP request splitting). Defense in depth:
+// today all values are library/key-derived, but this makes the serializer safe
+// even if a user-supplied value ever reaches a header, the path, or the host.
+std::string stripCRLF(const std::string& s) {
+  if (s.find('\r') == std::string::npos && s.find('\n') == std::string::npos) return s;
+  std::string out;
+  out.reserve(s.size());
+  for (char c : s) {
+    if (c != '\r' && c != '\n') out.push_back(c);
+  }
+  return out;
+}
+
 std::string toDecimal(size_t value) {
   if (value == 0) return "0";
   char buf[20];
@@ -26,25 +40,27 @@ std::string serializeRequest(const HttpRequest& req) {
   // Rough reserve to avoid repeated reallocations on constrained heaps.
   out.reserve(128 + req.body.size());
 
-  // Request line: METHOD SP path SP HTTP/1.1 CRLF
-  out += req.method;
+  // Request line: METHOD SP path SP HTTP/1.1 CRLF. Strip CR/LF from the
+  // method/path so they can't break the request line.
+  out += stripCRLF(req.method);
   out += ' ';
-  out += req.path.empty() ? "/" : req.path;
+  out += req.path.empty() ? "/" : stripCRLF(req.path);
   out += " HTTP/1.1";
   out += kCrlf;
 
   // Host is mandatory in HTTP/1.1. Add it first if the caller didn't.
   if (!hasHeader(req, "Host")) {
     out += "Host: ";
-    out += req.host;
+    out += stripCRLF(req.host);
     out += kCrlf;
   }
 
-  // Emit caller-provided headers verbatim, in order.
+  // Emit caller-provided headers, sanitizing each name/value against header
+  // injection.
   for (const auto& h : req.headers) {
-    out += h.first;
+    out += stripCRLF(h.first);
     out += ": ";
-    out += h.second;
+    out += stripCRLF(h.second);
     out += kCrlf;
   }
 

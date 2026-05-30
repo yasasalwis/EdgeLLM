@@ -144,6 +144,8 @@ void McpHttpServer::handle() {
   if (method == "POST" && pathMatch) {
     const bool authorized = mcp_.checkAuth(authHeader);
     McpReply reply = mcp_.handlePost(body, authorized);
+    // Throttle bearer-token brute-force: pause before answering a rejection.
+    if (reply.httpStatus == 401 && authFailDelayMs_ > 0) delay(authFailDelayMs_);
     sendResponse(client, reply.httpStatus, reply.body, reply.sessionId, reply.setSession);
   } else if (method == "GET" && pathMatch) {
     // No server-initiated SSE stream; the spec permits 405 here.

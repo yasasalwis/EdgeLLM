@@ -45,6 +45,10 @@ class McpHttpServer {
   void setMaxBodyBytes(uint32_t bytes) { maxBody_ = bytes; }
   void setReadTimeoutMs(uint32_t ms) { readTimeoutMs_ = ms; }
 
+  // Delay applied before answering a 401, to throttle bearer-token brute-force
+  // over the LAN. Set to 0 to disable.
+  void setAuthFailDelayMs(uint32_t ms) { authFailDelayMs_ = ms; }
+
  private:
   void sendResponse(WiFiClient& client, int status, const std::string& body,
                     const std::string& sessionId, bool withSession);
@@ -55,6 +59,7 @@ class McpHttpServer {
   std::string path_;
   uint32_t maxBody_ = 16384;
   uint32_t readTimeoutMs_ = 5000;
+  uint32_t authFailDelayMs_ = 500;
 };
 
 }  // namespace edge
