@@ -1,0 +1,107 @@
+#######################################
+# Syntax Coloring Map for EdgeLLM
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+EdgeLLM	KEYWORD1
+Capabilities	KEYWORD1
+Logger	KEYWORD1
+LogLevel	KEYWORD1
+SecretStore	KEYWORD1
+MemorySecretStore	KEYWORD1
+TimeSource	KEYWORD1
+HttpClient	KEYWORD1
+HttpRequest	KEYWORD1
+HttpResponse	KEYWORD1
+SseParser	KEYWORD1
+SseEvent	KEYWORD1
+ChunkedDecoder	KEYWORD1
+CACertStore	KEYWORD1
+IConnection	KEYWORD1
+Result	KEYWORD1
+Error	KEYWORD1
+LLMClient	KEYWORD1
+Provider	KEYWORD1
+AnthropicProvider	KEYWORD1
+OpenAIProvider	KEYWORD1
+OpenAIChatProvider	KEYWORD1
+GeminiProvider	KEYWORD1
+OllamaProvider	KEYWORD1
+Conversation	KEYWORD1
+Message	KEYWORD1
+ChatOptions	KEYWORD1
+ChatResult	KEYWORD1
+StreamDelta	KEYWORD1
+Role	KEYWORD1
+ToolRegistry	KEYWORD1
+ToolBuilder	KEYWORD1
+Tool	KEYWORD1
+ToolCallArgs	KEYWORD1
+ToolResult	KEYWORD1
+ToolCall	KEYWORD1
+AgentTurn	KEYWORD1
+AgentOptions	KEYWORD1
+ParamType	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+detect	KEYWORD2
+begin	KEYWORD2
+get	KEYWORD2
+set	KEYWORD2
+remove	KEYWORD2
+has	KEYWORD2
+clear	KEYWORD2
+syncNow	KEYWORD2
+epoch	KEYWORD2
+isValid	KEYWORD2
+send	KEYWORD2
+feed	KEYWORD2
+reset	KEYWORD2
+setCACert	KEYWORD2
+setInsecure	KEYWORD2
+redact	KEYWORD2
+log	KEYWORD2
+info	KEYWORD2
+warn	KEYWORD2
+error	KEYWORD2
+debug	KEYWORD2
+chat	KEYWORD2
+chatStream	KEYWORD2
+buildChatRequest	KEYWORD2
+parseChatResponse	KEYWORD2
+parseStreamEvent	KEYWORD2
+options	KEYWORD2
+addUser	KEYWORD2
+addAssistant	KEYWORD2
+setSystem	KEYWORD2
+useDefaultBundle	KEYWORD2
+trust	KEYWORD2
+run	KEYWORD2
+addTool	KEYWORD2
+param	KEYWORD2
+paramEnum	KEYWORD2
+onCall	KEYWORD2
+mutating	KEYWORD2
+allowWrite	KEYWORD2
+dispatch	KEYWORD2
+validate	KEYWORD2
+agentOptions	KEYWORD2
+isUrlAllowed	KEYWORD2
+isBlockedHost	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+EDGELLM_VERSION	LITERAL1
+LOG_DEBUG	LITERAL1
+LOG_INFO	LITERAL1
+LOG_WARN	LITERAL1
+LOG_ERROR	LITERAL1
+LOG_NONE	LITERAL1

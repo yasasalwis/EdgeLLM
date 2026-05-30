@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Least-privilege default token.
+permissions:
+  contents: read
+
+jobs:
+  native-tests:
+    name: Native unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run native tests
+        run: make test
+
+  lint:
+    name: clang-format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
+      - name: Check formatting (src + tests)
+        run: |
+          find src test -name '*.h' -o -name '*.cpp' \
+            | xargs clang-format --dry-run --Werror
+
+  static-analysis:
+    name: cppcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cppcheck
+        run: sudo apt-get update && sudo apt-get install -y cppcheck
+      - name: Run cppcheck on portable sources
+        run: |
+          cppcheck --std=c++17 --language=c++ --enable=warning,portability \
+            --error-exitcode=1 --inline-suppr --quiet \
+            -I src src/core src/transport src/hal/MemorySecretStore.cpp
+
+  secret-scan:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-examples:
+    name: Build examples (${{ matrix.env }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [esp32dev, esp8266, uno_r4_wifi, nano_33_iot]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: pio-${{ matrix.env }}-${{ hashFiles('platformio.ini') }}
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+      - name: Build example 01 (SelfTest) — all boards
+        run: pio ci --project-conf platformio.ini -e ${{ matrix.env }} --lib="." examples/01_SelfTest
+      # Example 02 (network) is validated on the ESP32 reference board in Phase 1.
+      # Other boards' network examples land with their HAL bring-up in Phase 5.
+      - name: Build network + LLM examples — ESP32 only
+        if: matrix.env == 'esp32dev'
+        run: |
+          for ex in 02_WiFiHealthCheck 03_CloudChat 04_StreamingChat 05_OllamaLocal 06_AgentTools; do
+            cp examples/$ex/arduino_secrets.h.example examples/$ex/arduino_secrets.h
+            pio ci --project-conf platformio.ini -e esp32dev --lib="." examples/$ex
+          done

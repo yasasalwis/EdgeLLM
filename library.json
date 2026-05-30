@@ -1,0 +1,47 @@
+{
+  "name": "EdgeLLM",
+  "version": "0.3.0",
+  "description": "Talk to Claude, Gemini, ChatGPT and Ollama from Arduino, and expose your device to LLMs over the Model Context Protocol (MCP). Two independent features (LLM client + MCP server), capability-tiered across ESP32, ESP8266, Uno R4 WiFi, Nano 33 IoT/MKR and Portenta. Secure by default.",
+  "keywords": [
+    "llm",
+    "ai",
+    "claude",
+    "anthropic",
+    "openai",
+    "chatgpt",
+    "gemini",
+    "ollama",
+    "mcp",
+    "model-context-protocol",
+    "esp32",
+    "iot",
+    "edge"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/edgellm/EdgeLLM.git"
+  },
+  "authors": [
+    {
+      "name": "EdgeLLM Authors",
+      "email": "yasaslive@gmail.com"
+    }
+  ],
+  "license": "MIT",
+  "frameworks": "arduino",
+  "platforms": [
+    "espressif32",
+    "espressif8266",
+    "renesas-ra",
+    "atmelsam",
+    "ststm32"
+  ],
+  "headers": "EdgeLLM.h",
+  "dependencies": {
+    "bblanchon/ArduinoJson": "^7.0.0"
+  },
+  "build": {
+    "srcDir": "src",
+    "libArchive": false
+  }
+}
