@@ -5,7 +5,6 @@
 
 #include "../../src/llm/LLMClient.h"
 #include "../../src/llm/providers/AnthropicProvider.h"
-#include "../../src/llm/providers/GeminiProvider.h"
 #include "../../src/llm/providers/OpenAIChatProvider.h"
 #include "../../src/tools/ToolRegistry.h"
 #include "../fakes/FakeConnection.h"
@@ -18,6 +17,18 @@ namespace {
 std::string http200(const std::string& body) {
   return "HTTP/1.1 200 OK\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
 }
+
+// A provider that does not override the tool-calling hooks — exercises the base
+// Provider default (supportsTools() == false -> the agent loop refuses).
+struct NoToolsProvider : public Provider {
+  const char* name() const override { return "no-tools"; }
+  bool secure() const override { return true; }
+  Status buildChatRequest(const MessageList&, const ChatOptions&, bool, HttpRequest&) override {
+    return Status::ok();
+  }
+  Status parseChatResponse(const HttpResponse&, ChatResult&) override { return Status::ok(); }
+  Status parseStreamEvent(const std::string&, StreamDelta&) override { return Status::ok(); }
+};
 
 ToolRegistry adderRegistry() {
   ToolRegistry r;
@@ -103,7 +114,7 @@ TEST(agentloop_unknown_tool_is_reported_to_model) {
 
 TEST(agentloop_provider_without_tools_returns_not_implemented) {
   FakeConnection conn;
-  GeminiProvider provider("k");  // tool calling not yet implemented for Gemini
+  NoToolsProvider provider;  // base-class default: supportsTools() == false
   ToolRegistry reg = adderRegistry();
   LLMClient client(provider, conn);
   Result<ChatResult> r = client.run("hi", reg);

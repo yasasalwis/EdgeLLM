@@ -14,12 +14,13 @@ independent features**:
 
 Use either feature on its own — neither pulls in the other.
 
-> **Status: Phase 4 (MCP Server) complete.** Both headline features are now
-> built: the **LLM client** (chat + streaming + on-device agent loop across
-> Claude/OpenAI/Gemini/Ollama) **and** the **MCP server** that exposes your
-> device's tools, resources, and a built-in KV store to any MCP host (Claude
-> Desktop, MCP Inspector). Phase 5 is cross-board bring-up + provisioning +
-> hardening. See [Roadmap](#roadmap).
+> **Status: feature-complete (v0.5.0), all 5 phases built.** Both features are
+> done: the **LLM client** (chat + streaming + agent loop with tool calling
+> across **all five** providers) and the **MCP server** (tools, resources,
+> prompts, built-in KV store, deny-by-default writes, bearer auth). 136 native
+> tests pass. Remaining work is **hardware validation** and a few cross-board
+> items — see [COMPLETION.md](COMPLETION.md) for the honest audit. See
+> [Roadmap](#roadmap).
 
 ---
 
@@ -132,8 +133,9 @@ EdgeLLM.h ─ umbrella
  ├─ tools/       ToolRegistry (fluent), Tool + JSON schema, ToolCallArgs, UrlGuard (SSRF)
  ├─ llm/         Provider interface + Anthropic/OpenAI/Gemini/Ollama/OpenAI-compatible,
  │               LLMClient (blocking + streaming + agent loop), Conversation, Message
- └─ mcp/         McpServer (JSON-RPC core), McpHttpServer (transport), EdgeStore (KV),
-                 ResourceRegistry, PromptRegistry
+ ├─ mcp/         McpServer (JSON-RPC core), McpHttpServer (transport), EdgeStore (KV),
+ │               ResourceRegistry, PromptRegistry
+ └─ provisioning/ ProvisioningService (pure), SerialProvisioner (device)
 ```
 
 Portable logic is Arduino-independent (depends only on the STL, which every
@@ -184,9 +186,9 @@ auto r = client.run("Turn the LED on.", tools);  // model calls set_led, then an
 ```
 
 The agent loop runs the tools the model asks for, feeds results back, and loops
-to a final answer (bounded by `agentOptions().maxIterations`). Tool calling is
-implemented for **OpenAI and Anthropic** today; Gemini/Ollama tool calling is the
-next increment.
+to a final answer (bounded by `agentOptions().maxIterations`). Tool calling works
+across **all five providers** (Anthropic, OpenAI, Gemini, Ollama, and
+OpenAI-compatible).
 
 ## Expose your device to LLM hosts (Feature B, MCP server)
 
@@ -217,14 +219,16 @@ host. **Writes are deny-by-default**: a mutating tool stays hidden until you cal
 - **Phase 1 — Foundation & Transport** ✅
 - **Phase 2 — LLM client** ✅ — Anthropic, OpenAI, Gemini, Ollama,
   OpenAI-compatible; blocking + streaming; conversation history.
-- **Phase 3 — Tool calling** ✅ — shared `ToolRegistry`, on-device agent loop
-  (OpenAI + Anthropic), SSRF guard.
-- **Phase 4 — MCP server** ✅ *(this release)* — JSON-RPC 2.0 / Streamable HTTP,
+- **Phase 3 — Tool calling** ✅ — shared `ToolRegistry`, on-device agent loop,
+  SSRF guard.
+- **Phase 4 — MCP server** ✅ — JSON-RPC 2.0 / Streamable HTTP,
   tools/resources/prompts, built-in `EdgeStore` KV, deny-by-default writes,
   bearer auth.
-- **Phase 5 — Cross-board + provisioning + hardening:** Uno R4 / NINA / Portenta
-  bring-up, persistent secret/KV backends beyond ESP32, provisioning portal,
-  Gemini/Ollama tool calling, MCP server-push SSE, final security pass, release.
+- **Phase 5 — Parity, provisioning & hardening** ✅ *(this release)* — tool
+  calling for **all five** providers, Serial provisioning, constant-time auth.
+- **Remaining (post-1.0 candidates):** on-hardware validation, cross-board TLS
+  pinning + persistent backends (Uno R4 / NINA / Portenta), captive-portal
+  provisioning, MCP server-push SSE. See [COMPLETION.md](COMPLETION.md).
 
 ## Security
 

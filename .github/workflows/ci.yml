@@ -81,10 +81,12 @@ jobs:
         run: pio ci --project-conf platformio.ini -e ${{ matrix.env }} --lib="." examples/01_SelfTest
       # Example 02 (network) is validated on the ESP32 reference board in Phase 1.
       # Other boards' network examples land with their HAL bring-up in Phase 5.
-      - name: Build network + LLM examples — ESP32 only
+      - name: Build network + LLM + MCP examples — ESP32 only
         if: matrix.env == 'esp32dev'
         run: |
           for ex in 02_WiFiHealthCheck 03_CloudChat 04_StreamingChat 05_OllamaLocal 06_AgentTools 07_McpServer; do
             cp examples/$ex/arduino_secrets.h.example examples/$ex/arduino_secrets.h
             pio ci --project-conf platformio.ini -e esp32dev --lib="." examples/$ex
           done
+          # Example 08 provisions secrets at runtime, so it has no secrets file.
+          pio ci --project-conf platformio.ini -e esp32dev --lib="." examples/08_Provisioning

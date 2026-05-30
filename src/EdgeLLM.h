@@ -64,4 +64,8 @@
 #include "mcp/McpServer.h"
 #include "mcp/McpHttpServer.h"  // on-device HTTP glue (guarded internally)
 
+// --- Optional provisioning (Phase 5), off by default ---
+#include "provisioning/ProvisioningService.h"
+#include "provisioning/SerialProvisioner.h"  // device-only (guarded internally)
+
 #endif  // EDGELLM_H

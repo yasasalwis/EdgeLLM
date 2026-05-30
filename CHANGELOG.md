@@ -3,6 +3,30 @@
 All notable changes to EdgeLLM are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow SemVer.
 
+## [0.5.0] — Phase 5: Parity, Provisioning & Hardening
+
+### Added
+- **Tool calling for Gemini and Ollama** — completing tool/function-calling
+  across all five providers (Gemini `functionCall`/`functionResponse`, Ollama
+  `tool_calls` with object arguments). The agent loop now works with any of them.
+- **Provisioning** (optional, off by default): `ProvisioningService` (pure,
+  declares allowed fields, never echoes secret values) + `SerialProvisioner`
+  (device frontend) to set WiFi creds and API keys into NVS without recompiling.
+- **Example `08_Provisioning`** — provision secrets over the Serial Monitor.
+- **Tests:** +14 native tests (Gemini/Ollama tool calling, provisioning) for 136
+  total.
+
+### Security
+- **Constant-time bearer-token comparison** in the MCP server (the previous `==`
+  short-circuited and leaked timing).
+- Provisioning writes are restricted to explicitly declared fields and never
+  echo submitted secret values.
+
+### Deferred to a future release (documented in COMPLETION.md)
+- Hardware validation on non-ESP32 boards; per-connection CA pinning and
+  persistent secret/KV backends for Uno R4 / NINA / Portenta.
+- Captive-portal provisioning frontend; MCP server-initiated SSE stream.
+
 ## [0.4.0] — Phase 4: MCP Server
 
 ### Added

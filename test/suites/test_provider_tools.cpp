@@ -1,8 +1,10 @@
-// Tests for tool-calling request building and response parsing on the two
-// providers that support it in Phase 3: OpenAI and Anthropic.
+// Tests for tool-calling request building and response parsing across all
+// providers that support it: OpenAI, Anthropic, Gemini, and Ollama.
 #include <ArduinoJson.h>
 
 #include "../../src/llm/providers/AnthropicProvider.h"
+#include "../../src/llm/providers/GeminiProvider.h"
+#include "../../src/llm/providers/OllamaProvider.h"
 #include "../../src/llm/providers/OpenAIChatProvider.h"
 #include "../../src/tools/ToolRegistry.h"
 #include "../framework/edge_test.h"
@@ -147,6 +149,87 @@ TEST(anthropic_parses_tool_use_response) {
   CHECK_STR_EQ(turn.text, "Let me add.");
   CHECK_EQ(turn.toolCalls.size(), static_cast<size_t>(1));
   CHECK_STR_EQ(turn.toolCalls[0].id, "toolu_1");
+  CHECK_STR_EQ(turn.toolCalls[0].name, "add");
+  CHECK(turn.toolCalls[0].argumentsJson.find("\"a\":2") != std::string::npos);
+}
+
+// ----------------------------- Gemini -----------------------------
+
+TEST(gemini_supports_tools) {
+  GeminiProvider p("k");
+  CHECK(p.supportsTools());
+}
+
+TEST(gemini_build_tool_request_declares_functions) {
+  GeminiProvider p("k", "gemini-x");
+  ToolRegistry reg = calculatorRegistry();
+  MessageList m{Message::user("add 2 and 3")};
+  HttpRequest req;
+  CHECK(p.buildToolRequest(m, ChatOptions{}, reg, req).isOk());
+  JsonDocument d = parse(req.body);
+  CHECK_STR_EQ(
+      std::string(d["tools"][0]["functionDeclarations"][0]["name"].as<const char*>()), "add");
+}
+
+TEST(gemini_serializes_function_call_and_response) {
+  GeminiProvider p("k");
+  ToolRegistry reg = calculatorRegistry();
+  HttpRequest req;
+  p.buildToolRequest(toolHistory(), ChatOptions{}, reg, req);
+  JsonDocument d = parse(req.body);
+  // contents: [user, model(functionCall), user(functionResponse)]
+  CHECK_STR_EQ(std::string(d["contents"][1]["role"].as<const char*>()), "model");
+  CHECK_STR_EQ(
+      std::string(d["contents"][1]["parts"][0]["functionCall"]["name"].as<const char*>()), "add");
+  CHECK_EQ(d["contents"][1]["parts"][0]["functionCall"]["args"]["a"].as<int>(), 2);
+  CHECK_STR_EQ(
+      std::string(d["contents"][2]["parts"][0]["functionResponse"]["name"].as<const char*>()),
+      "add");
+}
+
+TEST(gemini_parses_function_call_response) {
+  GeminiProvider p("k");
+  HttpResponse resp;
+  resp.status = 200;
+  resp.body =
+      R"({"candidates":[{"content":{"parts":[{"functionCall":{"name":"add","args":{"a":2,"b":3}}}]},"finishReason":"STOP"}]})";
+  AgentTurn turn;
+  CHECK(p.parseToolResponse(resp, turn).isOk());
+  CHECK_EQ(turn.toolCalls.size(), static_cast<size_t>(1));
+  CHECK_STR_EQ(turn.toolCalls[0].name, "add");
+  CHECK(turn.toolCalls[0].argumentsJson.find("\"a\":2") != std::string::npos);
+}
+
+// ----------------------------- Ollama -----------------------------
+
+TEST(ollama_supports_tools) {
+  OllamaProvider p;
+  CHECK(p.supportsTools());
+}
+
+TEST(ollama_serializes_tool_calls_with_object_arguments) {
+  OllamaProvider p;
+  ToolRegistry reg = calculatorRegistry();
+  HttpRequest req;
+  p.buildToolRequest(toolHistory(), ChatOptions{}, reg, req);
+  JsonDocument d = parse(req.body);
+  // assistant tool_calls; Ollama wants arguments as an OBJECT, not a string.
+  CHECK_STR_EQ(std::string(d["messages"][1]["role"].as<const char*>()), "assistant");
+  CHECK_EQ(d["messages"][1]["tool_calls"][0]["function"]["arguments"]["a"].as<int>(), 2);
+  // tool result message
+  CHECK_STR_EQ(std::string(d["messages"][2]["role"].as<const char*>()), "tool");
+  CHECK_STR_EQ(std::string(d["messages"][2]["content"].as<const char*>()), "5");
+}
+
+TEST(ollama_parses_tool_call_response) {
+  OllamaProvider p;
+  HttpResponse resp;
+  resp.status = 200;
+  resp.body =
+      R"({"message":{"role":"assistant","content":"","tool_calls":[{"function":{"name":"add","arguments":{"a":2,"b":3}}}]},"done":true})";
+  AgentTurn turn;
+  CHECK(p.parseToolResponse(resp, turn).isOk());
+  CHECK_EQ(turn.toolCalls.size(), static_cast<size_t>(1));
   CHECK_STR_EQ(turn.toolCalls[0].name, "add");
   CHECK(turn.toolCalls[0].argumentsJson.find("\"a\":2") != std::string::npos);
 }

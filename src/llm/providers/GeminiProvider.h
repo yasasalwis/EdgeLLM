@@ -27,6 +27,11 @@ class GeminiProvider : public Provider {
   Status parseChatResponse(const HttpResponse& response, ChatResult& out) override;
   Status parseStreamEvent(const std::string& payload, StreamDelta& out) override;
 
+  bool supportsTools() const override { return true; }
+  Status buildToolRequest(const MessageList& messages, const ChatOptions& options,
+                          const ToolRegistry& tools, HttpRequest& out) override;
+  Status parseToolResponse(const HttpResponse& response, AgentTurn& out) override;
+
   // Exposes the API key so LLMClient can register it for log redaction.
   const std::string& apiKey() const { return apiKey_; }
 

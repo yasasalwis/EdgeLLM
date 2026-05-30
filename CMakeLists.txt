@@ -34,6 +34,7 @@ set(EDGELLM_PURE_SOURCES
     src/mcp/ResourceRegistry.cpp
     src/mcp/PromptRegistry.cpp
     src/mcp/McpServer.cpp
+    src/provisioning/ProvisioningService.cpp
     src/llm/Conversation.cpp
     src/llm/LLMClient.cpp
     src/llm/providers/AnthropicProvider.cpp
@@ -58,7 +59,8 @@ set(EDGELLM_TEST_SOURCES
     test/suites/test_urlguard.cpp
     test/suites/test_edgestore.cpp
     test/suites/test_mcp_server.cpp
-    test/suites/test_mcp_resources.cpp)
+    test/suites/test_mcp_resources.cpp
+    test/suites/test_provisioning.cpp)
 
 add_executable(edgellm_tests ${EDGELLM_PURE_SOURCES} ${EDGELLM_TEST_SOURCES})
 # ArduinoJson is vendored for the host test build only (on-device it comes from

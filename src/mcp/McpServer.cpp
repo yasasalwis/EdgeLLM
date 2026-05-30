@@ -13,6 +13,18 @@ constexpr int kInvalidParams = -32602;
 constexpr int kResourceNotFound = -32002;
 constexpr int kUnauthorized = -32001;
 
+// Constant-time string comparison so bearer-token validation does not leak the
+// matching prefix length through timing. (Length is compared first, which is
+// standard and acceptable.)
+bool constantTimeEquals(const std::string& a, const std::string& b) {
+  if (a.size() != b.size()) return false;
+  unsigned char diff = 0;
+  for (size_t i = 0; i < a.size(); ++i) {
+    diff |= static_cast<unsigned char>(a[i]) ^ static_cast<unsigned char>(b[i]);
+  }
+  return diff == 0;
+}
+
 std::string itos(unsigned long v) {
   if (v == 0) return "0";
   char buf[24];
@@ -82,7 +94,7 @@ void addKvTools(JsonArray arr) {
 bool McpServer::checkAuth(const std::string& authorizationHeader) const {
   if (!authRequired()) return true;
   const std::string expected = "Bearer " + authToken_;
-  return authorizationHeader == expected;
+  return constantTimeEquals(authorizationHeader, expected);
 }
 
 McpReply McpServer::handlePost(const std::string& body, bool authorized) {
