@@ -49,13 +49,37 @@ reporters who wish to be named.
 - **Agent loop guardrails:** max-iteration limit and SSRF checks on
   user-supplied URLs.
 
+## MCP server trust model (read before exposing it)
+
+The MCP server is designed for a **trusted LAN**:
+
+- **Traffic is plaintext HTTP.** A TLS *server* on an MCU is impractical, so the
+  bearer token and all data cross the network in the clear. Run the endpoint on a
+  trusted LAN/VLAN, or behind a reverse proxy that terminates TLS. **Never expose
+  it directly to the internet.**
+- **Authentication is opt-in.** With no `setAuthToken()`, the endpoint is open to
+  anyone who can route to the device. Always set a long, random
+  `MCP_BEARER_TOKEN` for anything beyond a closed test bench. Failed-auth
+  responses are delayed (default 500 ms, `setAuthFailDelayMs`) to throttle
+  brute-force, and the token is compared in constant time.
+- **Writes are deny-by-default** — mutating tools and `kv_set`/`kv_delete` stay
+  hidden and refused until explicitly enabled.
+
 ## Honest limitations
 
 - A determined attacker on your LAN can still attempt to exhaust a small MCU's
-  resources; caps and auth reduce but do not eliminate this.
+  resources; caps, timeouts and the auth delay reduce but do not eliminate this.
 - On WiFiNINA / WiFiS3 boards, certificate trust currently relies on the WiFi
-  co-processor firmware store; per-connection pinning arrives in Phase 5. ESP32
+  co-processor firmware store; per-connection pinning is a post-1.0 item. ESP32
   is the fully-validated TLS target today.
+
+## Hardening notes (from the v0.5.0 security review)
+
+- HTTP request serialization strips CR/LF from the request line and all header
+  names/values, so a value can never inject extra headers or smuggle a request.
+- Bearer-token comparison is constant-time; failed auth is rate-delayed.
+- See `COMPLETION.md` for the full review (0 critical / 0 high; residual risk is
+  the LAN-trust model above).
 
 ## Secrets hygiene
 
