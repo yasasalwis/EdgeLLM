@@ -21,6 +21,15 @@ ResourceBuilder& ResourceBuilder::onRead(
 }
 
 ResourceBuilder ResourceRegistry::addResource(const std::string& uri, const std::string& name) {
+  // Re-registering the same URI redefines it in place (URIs must be unique).
+  for (size_t i = 0; i < resources_.size(); ++i) {
+    if (resources_[i].uri == uri) {
+      resources_[i] = Resource{};
+      resources_[i].uri = uri;
+      resources_[i].name = name;
+      return ResourceBuilder(this, i);
+    }
+  }
   Resource r;
   r.uri = uri;
   r.name = name;

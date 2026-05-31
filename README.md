@@ -47,15 +47,22 @@ feature stands on verified ground:
 | ESP8266                 | ✅       | ✅ (1 conn) | ✅ flash KV        | ❌ coop      |
 | Arduino Uno R4 WiFi     | ✅       | ⚠️ firmware store¹ | ⏳ Phase 5    | ❌ coop      |
 | Nano 33 IoT / MKR (NINA)| ✅       | ⚠️ firmware store¹ | ⏳ Phase 5    | ❌ coop      |
-| Portenta (mbed)         | ⏳ Phase 5 | ⏳        | ⏳                 | ✅ mbed RTOS |
+| Portenta (mbed)         | ⏳ later   | ⏳        | ⏳                 | ✅ mbed RTOS |
 
 ¹ On WiFiNINA / WiFiS3 boards the trust store lives in the WiFi co-processor
-firmware; per-connection CA pinning is consolidated in Phase 5. ESP32 is the
-fully-validated reference target for Phase 1.
+firmware; per-connection CA pinning is a post-1.0 item. ESP32 is the
+fully-validated reference target.
 
-In Phase 1, the persistent secret store is implemented for **ESP32 (NVS)**;
-other boards use the in-RAM store (sketch supplies secrets at boot) until their
-native flash backends land in Phase 5.
+> **Not supported: classic AVR Arduino (Uno / Mega) + a WiFi shield.** Those chips
+> have no C++ STL and only a few KB of RAM — they cannot do TLS to a cloud LLM and
+> the library won't compile. The Library Manager marks EdgeLLM incompatible with
+> AVR, and an explicit `#error` explains why if you force it. Use a 32-bit WiFi
+> core (the table above). "Arduino + WiFi" that *is* supported means the Uno R4
+> WiFi or a MKR/Nano 33 IoT with WiFiNINA.
+
+The persistent secret store is implemented for **ESP32 (NVS)**; other boards use
+the in-RAM store (sketch supplies secrets at boot, e.g. via Serial provisioning)
+until their native flash backends land.
 
 ## Install
 

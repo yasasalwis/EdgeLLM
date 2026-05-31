@@ -5,8 +5,8 @@
 
 #define EDGELLM_VERSION_MAJOR 0
 #define EDGELLM_VERSION_MINOR 5
-#define EDGELLM_VERSION_PATCH 0
-#define EDGELLM_VERSION "0.5.0"
+#define EDGELLM_VERSION_PATCH 1
+#define EDGELLM_VERSION "0.5.1"
 
 namespace edge {
 

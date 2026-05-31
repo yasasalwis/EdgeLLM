@@ -77,3 +77,10 @@ TEST(edgestore_persisted_delete_survives_reload) {
   CHECK(!reloaded.has("a"));
   CHECK(reloaded.has("b"));
 }
+
+TEST(edgestore_rejects_reserved_manifest_key) {
+  EdgeStore s;
+  // A user must not be able to clobber the persistence manifest.
+  CHECK_EQ(s.set("__edgestore_manifest__", "x").error(), Error::InvalidArgument);
+  CHECK(!s.has("__edgestore_manifest__"));
+}

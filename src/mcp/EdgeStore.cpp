@@ -3,6 +3,10 @@
 namespace edge {
 
 namespace {
+// Reserved backend key holding the list of stored keys (NVS can't enumerate).
+// File-local to avoid any static-member linkage concerns across Arduino cores.
+constexpr char kManifestKey[] = "__edgestore_manifest__";
+
 // Joins keys with '\n' for the manifest; keys are validated to be newline-free
 // on the way in, so this round-trips cleanly.
 std::string joinKeys(const std::map<std::string, std::string>& data) {
@@ -49,6 +53,7 @@ void EdgeStore::persistManifest() {
 Status EdgeStore::set(const std::string& key, const std::string& value) {
   if (key.empty() || key.size() > maxKeyLen_) return Status::fail(Error::InvalidArgument);
   if (key.find('\n') != std::string::npos) return Status::fail(Error::InvalidArgument);
+  if (key == kManifestKey) return Status::fail(Error::InvalidArgument);  // reserved
   if (value.size() > maxValueLen_) return Status::fail(Error::Capacity);
   const bool isNew = data_.find(key) == data_.end();
   if (isNew && data_.size() >= maxKeys_) return Status::fail(Error::Capacity);
@@ -69,6 +74,7 @@ Result<std::string> EdgeStore::get(const std::string& key) {
 }
 
 Status EdgeStore::remove(const std::string& key) {
+  if (key == kManifestKey) return Status::ok();  // never touch the reserved manifest
   auto it = data_.find(key);
   if (it == data_.end()) return Status::ok();  // idempotent
   data_.erase(it);

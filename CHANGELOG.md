@@ -3,6 +3,30 @@
 All notable changes to EdgeLLM are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow SemVer.
 
+## [0.5.1] — Security review fixes & edge-case hardening
+
+### Security
+- **HTTP header-injection guard** — request serialization strips CR/LF from the
+  method, path, host, and every header name/value (CWE-93/113 defense in depth).
+- **MCP bearer-token brute-force throttle** — configurable delay before a 401
+  (`setAuthFailDelayMs`, default 500 ms), on top of the constant-time compare.
+
+### Robustness / edge cases
+- **Unsupported-board guard** — a clear compile-time `#error` (instead of cryptic
+  STL errors) when built for a core without the C++ STL, e.g. classic AVR Arduino
+  (Uno/Mega) + WiFi shield, naming the supported 32-bit WiFi cores.
+- **No duplicate registration** — re-registering a tool / resource / prompt with
+  an existing name now redefines it in place instead of creating a duplicate
+  (duplicates would confuse the model and violate MCP's unique-name requirement).
+- **EdgeStore reserved key** — the internal persistence-manifest key can no longer
+  be overwritten or deleted by a user/host, preventing store corruption.
+- `EdgeStore`'s manifest key is now file-local to avoid static-member linkage
+  issues on `-std=gnu++11` Arduino cores.
+
+### Tests
+- +5 native tests (header-injection ×2, registry dedupe ×3, reserved-key) for 141
+  total, all green.
+
 ## [0.5.0] — Phase 5: Parity, Provisioning & Hardening
 
 ### Added

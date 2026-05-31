@@ -108,3 +108,12 @@ TEST(tool_optional_param_can_be_omitted) {
   CHECK(res.isOk());
   CHECK_STR_EQ(res.value().content, "hi world");
 }
+
+TEST(tool_reregistration_replaces_not_duplicates) {
+  ToolRegistry r;
+  r.addTool("x", "first").onCall([](ToolCallArgs&) { return ToolResult::ok("a"); });
+  r.addTool("x", "second").onCall([](ToolCallArgs&) { return ToolResult::ok("b"); });
+  CHECK_EQ(r.size(), static_cast<size_t>(1));  // no duplicate
+  CHECK_STR_EQ(r.find("x")->description, "second");
+  CHECK_STR_EQ(r.dispatch("x", "{}").value().content, "b");  // latest handler wins
+}

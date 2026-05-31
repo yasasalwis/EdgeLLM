@@ -46,8 +46,6 @@ class EdgeStore {
   size_t maxValueLen_;
   size_t maxKeyLen_;
   ISecretStore* backend_ = nullptr;
-
-  static constexpr const char* kManifestKey = "__edgestore_manifest__";
 };
 
 }  // namespace edge

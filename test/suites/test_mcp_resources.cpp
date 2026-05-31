@@ -104,3 +104,17 @@ TEST(mcp_initialize_capabilities_reflect_registries) {
   CHECK(!caps["resources"].isNull());
   CHECK(!caps["prompts"].isNull());
 }
+
+TEST(resource_and_prompt_reregistration_replace) {
+  ResourceRegistry rr;
+  rr.addResource("sensor://x", "first");
+  rr.addResource("sensor://x", "second");  // same URI -> redefine, not duplicate
+  CHECK_EQ(rr.size(), static_cast<size_t>(1));
+  CHECK_STR_EQ(rr.find("sensor://x")->name, "second");
+
+  PromptRegistry pr;
+  pr.addPrompt("p", "first");
+  pr.addPrompt("p", "second");
+  CHECK_EQ(pr.size(), static_cast<size_t>(1));
+  CHECK_STR_EQ(pr.find("p")->description, "second");
+}

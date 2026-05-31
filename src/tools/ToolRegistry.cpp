@@ -75,6 +75,17 @@ ToolBuilder& ToolBuilder::onCall(ToolHandler handler) {
 // ---------------- Registry ----------------
 
 ToolBuilder ToolRegistry::addTool(const std::string& name, const std::string& description) {
+  // Re-registering an existing name redefines that tool in place rather than
+  // creating a duplicate (a duplicate would confuse the model and break MCP
+  // tools/list, which requires unique names).
+  for (size_t i = 0; i < tools_.size(); ++i) {
+    if (tools_[i].name == name) {
+      tools_[i] = Tool{};
+      tools_[i].name = name;
+      tools_[i].description = description;
+      return ToolBuilder(this, i);
+    }
+  }
   Tool t;
   t.name = name;
   t.description = description;

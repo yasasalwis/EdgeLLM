@@ -37,4 +37,23 @@
 #define EDGELLM_PLATFORM_NATIVE 1
 #endif
 
+// ---------------------------------------------------------------------------
+// Compile-time capability gate.
+//
+// EdgeLLM is built on the C++ STL (std::string, std::vector, std::function,
+// std::map). Classic AVR Arduino (Uno/Mega + a WiFi shield) ships no libstdc++
+// and only a few KB of RAM, so it cannot build or run this library. Rather than
+// emit a wall of "std::string does not name a type" errors, fail early with a
+// clear message pointing at the supported boards.
+// ---------------------------------------------------------------------------
+#if defined(EDGELLM_HAS_ARDUINO)
+#if defined(__has_include)
+#if !__has_include(<string>)
+#error "EdgeLLM is not supported on this board: it requires the C++ STL. Use a 32-bit WiFi core — ESP32, ESP8266, Arduino Uno R4 WiFi, Nano 33 IoT / MKR (WiFiNINA), or Portenta. Classic AVR Arduino (Uno/Mega) + WiFi shield is not supported."
+#endif
+#elif defined(__AVR__) || defined(ARDUINO_ARCH_AVR)
+#error "EdgeLLM is not supported on AVR (classic Arduino Uno/Mega). Use a 32-bit WiFi core — ESP32, ESP8266, Uno R4 WiFi, Nano 33 IoT / MKR, or Portenta."
+#endif
+#endif
+
 #endif  // EDGELLM_HAL_PLATFORM_H

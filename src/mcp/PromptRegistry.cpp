@@ -20,6 +20,15 @@ PromptBuilder& PromptBuilder::onGet(std::function<Result<std::string>(ToolCallAr
 }
 
 PromptBuilder PromptRegistry::addPrompt(const std::string& name, const std::string& description) {
+  // Re-registering the same name redefines it in place (names must be unique).
+  for (size_t i = 0; i < prompts_.size(); ++i) {
+    if (prompts_[i].name == name) {
+      prompts_[i] = Prompt{};
+      prompts_[i].name = name;
+      prompts_[i].description = description;
+      return PromptBuilder(this, i);
+    }
+  }
   Prompt p;
   p.name = name;
   p.description = description;
