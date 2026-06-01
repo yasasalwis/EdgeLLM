@@ -10,6 +10,8 @@
 #ifndef EDGELLM_MCP_MCPHTTPSERVER_H
 #define EDGELLM_MCP_MCPHTTPSERVER_H
 
+#include <cstdint>
+
 #include "../hal/Platform.h"
 
 #if defined(EDGELLM_HAS_ARDUINO)

@@ -9,6 +9,8 @@
 #ifndef EDGELLM_CORE_LOGGER_H
 #define EDGELLM_CORE_LOGGER_H
 
+#include <cstdint>
+
 #include <string>
 #include <vector>
 

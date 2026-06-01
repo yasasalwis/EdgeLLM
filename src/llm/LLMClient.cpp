@@ -50,12 +50,18 @@ void LLMClient::configure(HttpClient& http) const {
 
 Error LLMClient::mapStatus(int httpStatus) {
   switch (httpStatus) {
-    case 400: return Error::InvalidArgument;
-    case 401: return Error::Unauthorized;
-    case 403: return Error::Forbidden;
-    case 404: return Error::NotFound;
-    case 429: return Error::RateLimited;
-    default: return Error::ProviderError;
+    case 400:
+      return Error::InvalidArgument;
+    case 401:
+      return Error::Unauthorized;
+    case 403:
+      return Error::Forbidden;
+    case 404:
+      return Error::NotFound;
+    case 429:
+      return Error::RateLimited;
+    default:
+      return Error::ProviderError;
   }
 }
 
@@ -78,8 +84,7 @@ Result<StructuredResult> LLMClient::doGenerate(const ResponseSchema& schema,
     // Transport / HTTP errors are not retried — retrying an auth or rate-limit
     // failure is pointless.
     if (!s) {
-      if (logger_)
-        logger_->warn(std::string(provider_.name()) + " request failed: " + s.message());
+      if (logger_) logger_->warn(std::string(provider_.name()) + " request failed: " + s.message());
       return Result<StructuredResult>::fail(s.error());
     }
     if (!resp.isSuccess()) {
@@ -151,8 +156,7 @@ MessageList flattenForStructured(const MessageList& working) {
 Result<StructuredResult> LLMClient::run(const ResponseSchema& schema, const MessageList& messages,
                                         const ToolRegistry& tools) {
   if (!provider_.supportsTools()) {
-    if (logger_)
-      logger_->warn(std::string(provider_.name()) + " does not support tool calling");
+    if (logger_) logger_->warn(std::string(provider_.name()) + " does not support tool calling");
     return Result<StructuredResult>::fail(Error::NotImplemented);
   }
 

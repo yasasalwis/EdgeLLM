@@ -11,7 +11,7 @@ Capabilities detectCapabilities() {
   c.board = "esp32";
   c.heapBudget = 160000;  // typical free heap after WiFi+TLS on a classic ESP32
   c.maxTlsConnections = 4;
-  c.supportsFullDuplex = true;  // FreeRTOS
+  c.supportsFullDuplex = true;       // FreeRTOS
   c.supportsPersistentStore = true;  // NVS / Preferences
   c.recvBufferSize = 1024;
   c.maxResponseBody = 65536;
@@ -24,7 +24,7 @@ Capabilities detectCapabilities() {
   c.board = "esp8266";
   c.heapBudget = 24000;  // tight: one TLS connection consumes most of the heap
   c.maxTlsConnections = 1;
-  c.supportsFullDuplex = false;  // single core, cooperative only
+  c.supportsFullDuplex = false;      // single core, cooperative only
   c.supportsPersistentStore = true;  // flash KV via Preferences/EEPROM
   c.recvBufferSize = 512;
   c.maxResponseBody = 8192;

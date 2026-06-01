@@ -57,9 +57,9 @@ TEST(logger_filters_below_level) {
   Logger log;
   log.setSink(&sink);
   log.setLevel(LogLevel::Warn);
-  log.info("noisy");   // dropped
-  log.warn("careful"); // kept
-  log.error("boom");   // kept
+  log.info("noisy");    // dropped
+  log.warn("careful");  // kept
+  log.error("boom");    // kept
   CHECK_EQ(sink.lines.size(), static_cast<size_t>(2));
   CHECK(sink.lines[0].find("careful") != std::string::npos);
   CHECK(sink.lines[0].find("[WARN]") != std::string::npos);

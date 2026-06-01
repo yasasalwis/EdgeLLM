@@ -12,7 +12,8 @@ void writeObjectSchema(const std::vector<ToolParam>& fields, JsonObject out,
     if (!p.description.empty()) po["description"] = p.description;
     if (!p.enumValues.empty()) {
       JsonArray e = po["enum"].to<JsonArray>();
-      for (const auto& v : p.enumValues) e.add(v);
+      for (const auto& v : p.enumValues)
+        e.add(v);
     }
   }
   bool anyRequired = false;
@@ -33,12 +34,18 @@ void writeObjectSchema(const std::vector<ToolParam>& fields, JsonObject out,
 namespace {
 bool typeMatches(ParamType type, JsonVariantConst v) {
   switch (type) {
-    case ParamType::String: return v.is<const char*>();
-    case ParamType::Integer: return v.is<long>();
-    case ParamType::Number: return v.is<float>();
-    case ParamType::Boolean: return v.is<bool>();
-    case ParamType::Object: return v.is<JsonObjectConst>();
-    case ParamType::Array: return v.is<JsonArrayConst>();
+    case ParamType::String:
+      return v.is<const char*>();
+    case ParamType::Integer:
+      return v.is<long>();
+    case ParamType::Number:
+      return v.is<float>();
+    case ParamType::Boolean:
+      return v.is<bool>();
+    case ParamType::Object:
+      return v.is<JsonObjectConst>();
+    case ParamType::Array:
+      return v.is<JsonArrayConst>();
   }
   return false;
 }

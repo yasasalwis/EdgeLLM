@@ -20,9 +20,7 @@ class SerialProvisioner {
   explicit SerialProvisioner(ProvisioningService& service, Stream& io = Serial)
       : service_(service), io_(io) {}
 
-  void begin() {
-    io_.println("EdgeLLM provisioning ready. Type 'help'.");
-  }
+  void begin() { io_.println("EdgeLLM provisioning ready. Type 'help'."); }
 
   // Call from loop(). Assembles complete lines and dispatches them.
   void poll() {

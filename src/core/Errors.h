@@ -68,42 +68,78 @@ enum class Error : uint8_t {
 // never contain secrets or user data — safe to log and to surface to clients.
 inline const char* errorString(Error e) {
   switch (e) {
-    case Error::Ok: return "ok";
-    case Error::InvalidArgument: return "invalid argument";
-    case Error::InvalidState: return "invalid state";
-    case Error::NotImplemented: return "not implemented";
-    case Error::OutOfMemory: return "out of memory";
-    case Error::Timeout: return "timeout";
-    case Error::NotFound: return "not found";
-    case Error::AlreadyExists: return "already exists";
-    case Error::Capacity: return "capacity exceeded";
-    case Error::NotConnected: return "not connected";
-    case Error::ConnectFailed: return "connect failed";
-    case Error::DnsFailed: return "dns resolution failed";
-    case Error::TlsHandshakeFailed: return "tls handshake failed";
-    case Error::CertVerifyFailed: return "certificate verification failed";
-    case Error::WriteFailed: return "socket write failed";
-    case Error::ReadFailed: return "socket read failed";
-    case Error::ConnectionClosed: return "connection closed";
-    case Error::HttpMalformed: return "malformed http response";
-    case Error::HttpStatusError: return "http status error";
-    case Error::HttpBodyTooLarge: return "http body too large";
-    case Error::HttpUnsupportedTransfer: return "unsupported transfer encoding";
-    case Error::JsonParseError: return "json parse error";
-    case Error::SseMalformed: return "malformed sse stream";
-    case Error::SchemaValidationFailed: return "schema validation failed";
-    case Error::Unauthorized: return "unauthorized";
-    case Error::Forbidden: return "forbidden";
-    case Error::SecretNotFound: return "secret not found";
-    case Error::SecretStoreError: return "secret store error";
-    case Error::ProviderError: return "provider error";
-    case Error::RateLimited: return "rate limited";
-    case Error::ContextOverflow: return "context window overflow";
-    case Error::ToolIterationLimit: return "tool iteration limit reached";
-    case Error::McpProtocolError: return "mcp protocol error";
-    case Error::McpMethodNotFound: return "mcp method not found";
-    case Error::McpToolNotFound: return "mcp tool not found";
-    case Error::McpWriteNotAllowed: return "mcp write not allowed";
+    case Error::Ok:
+      return "ok";
+    case Error::InvalidArgument:
+      return "invalid argument";
+    case Error::InvalidState:
+      return "invalid state";
+    case Error::NotImplemented:
+      return "not implemented";
+    case Error::OutOfMemory:
+      return "out of memory";
+    case Error::Timeout:
+      return "timeout";
+    case Error::NotFound:
+      return "not found";
+    case Error::AlreadyExists:
+      return "already exists";
+    case Error::Capacity:
+      return "capacity exceeded";
+    case Error::NotConnected:
+      return "not connected";
+    case Error::ConnectFailed:
+      return "connect failed";
+    case Error::DnsFailed:
+      return "dns resolution failed";
+    case Error::TlsHandshakeFailed:
+      return "tls handshake failed";
+    case Error::CertVerifyFailed:
+      return "certificate verification failed";
+    case Error::WriteFailed:
+      return "socket write failed";
+    case Error::ReadFailed:
+      return "socket read failed";
+    case Error::ConnectionClosed:
+      return "connection closed";
+    case Error::HttpMalformed:
+      return "malformed http response";
+    case Error::HttpStatusError:
+      return "http status error";
+    case Error::HttpBodyTooLarge:
+      return "http body too large";
+    case Error::HttpUnsupportedTransfer:
+      return "unsupported transfer encoding";
+    case Error::JsonParseError:
+      return "json parse error";
+    case Error::SseMalformed:
+      return "malformed sse stream";
+    case Error::SchemaValidationFailed:
+      return "schema validation failed";
+    case Error::Unauthorized:
+      return "unauthorized";
+    case Error::Forbidden:
+      return "forbidden";
+    case Error::SecretNotFound:
+      return "secret not found";
+    case Error::SecretStoreError:
+      return "secret store error";
+    case Error::ProviderError:
+      return "provider error";
+    case Error::RateLimited:
+      return "rate limited";
+    case Error::ContextOverflow:
+      return "context window overflow";
+    case Error::ToolIterationLimit:
+      return "tool iteration limit reached";
+    case Error::McpProtocolError:
+      return "mcp protocol error";
+    case Error::McpMethodNotFound:
+      return "mcp method not found";
+    case Error::McpToolNotFound:
+      return "mcp tool not found";
+    case Error::McpWriteNotAllowed:
+      return "mcp write not allowed";
   }
   return "unknown error";
 }

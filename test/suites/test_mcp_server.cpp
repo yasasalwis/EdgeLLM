@@ -48,7 +48,8 @@ TEST(mcp_initialize_returns_server_info_and_session) {
   s.setInstructions("be careful");
   McpReply reply;
   JsonDocument d = call(
-      s, R"({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}})",
+      s,
+      R"({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}})",
       true, &reply);
   CHECK_STR_EQ(jstr(d["jsonrpc"]), "2.0");
   CHECK_EQ(d["id"].as<int>(), 1);
@@ -103,7 +104,8 @@ TEST(mcp_tools_call_runs_tool) {
   ToolRegistry reg = sampleTools();
   s.setToolRegistry(&reg);
   JsonDocument d = call(
-      s, R"({"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"echo","arguments":{"msg":"hi"}}})");
+      s,
+      R"({"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"echo","arguments":{"msg":"hi"}}})");
   CHECK_STR_EQ(jstr(d["result"]["content"][0]["text"]), "echoed:hi");
   CHECK(!d["result"]["isError"].as<bool>());
 }
@@ -113,7 +115,8 @@ TEST(mcp_tools_call_refuses_denied_write) {
   ToolRegistry reg = sampleTools();
   s.setToolRegistry(&reg);
   JsonDocument d = call(
-      s, R"({"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"danger","arguments":{}}})");
+      s,
+      R"({"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"danger","arguments":{}}})");
   CHECK_EQ(d["error"]["code"].as<int>(), -32602);
 }
 
@@ -121,8 +124,8 @@ TEST(mcp_tools_call_unknown_tool_errors) {
   McpServer s("x", "1");
   ToolRegistry reg = sampleTools();
   s.setToolRegistry(&reg);
-  JsonDocument d = call(
-      s, R"({"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"ghost"}})");
+  JsonDocument d =
+      call(s, R"({"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"ghost"}})");
   CHECK_EQ(d["error"]["code"].as<int>(), -32602);
 }
 
@@ -195,8 +198,8 @@ TEST(mcp_edgestore_exposed_as_tools_and_resources) {
   }
   CHECK(sawKvResource);
 
-  JsonDocument read = call(
-      s, R"({"jsonrpc":"2.0","id":4,"method":"resources/read","params":{"uri":"kv://mode"}})");
+  JsonDocument read =
+      call(s, R"({"jsonrpc":"2.0","id":4,"method":"resources/read","params":{"uri":"kv://mode"}})");
   CHECK_STR_EQ(jstr(read["result"]["contents"][0]["text"]), "eco");
 }
 

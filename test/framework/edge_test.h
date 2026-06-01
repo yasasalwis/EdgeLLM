@@ -32,7 +32,9 @@ inline int& checks() {
 }
 
 struct Registrar {
-  Registrar(const char* name, std::function<void()> fn) { registry().push_back({name, std::move(fn)}); }
+  Registrar(const char* name, std::function<void()> fn) {
+    registry().push_back({name, std::move(fn)});
+  }
 };
 
 inline void reportFail(const char* file, int line, const std::string& msg) {
@@ -59,33 +61,32 @@ inline int runAll() {
 
 }  // namespace edgetest
 
-#define TEST(name)                                                  \
-  static void name();                                               \
-  static edgetest::Registrar edgetest_reg_##name(#name, name);      \
+#define TEST(name)                                             \
+  static void name();                                          \
+  static edgetest::Registrar edgetest_reg_##name(#name, name); \
   static void name()
 
-#define CHECK(cond)                                                                 \
-  do {                                                                              \
-    edgetest::checks()++;                                                           \
-    if (!(cond)) edgetest::reportFail(__FILE__, __LINE__, "CHECK failed: " #cond);  \
+#define CHECK(cond)                                                                \
+  do {                                                                             \
+    edgetest::checks()++;                                                          \
+    if (!(cond)) edgetest::reportFail(__FILE__, __LINE__, "CHECK failed: " #cond); \
   } while (0)
 
-#define CHECK_EQ(a, b)                                                                       \
-  do {                                                                                       \
-    edgetest::checks()++;                                                                    \
-    if (!((a) == (b)))                                                                        \
-      edgetest::reportFail(__FILE__, __LINE__, "CHECK_EQ failed: " #a " == " #b);            \
+#define CHECK_EQ(a, b)                                                                             \
+  do {                                                                                             \
+    edgetest::checks()++;                                                                          \
+    if (!((a) == (b))) edgetest::reportFail(__FILE__, __LINE__, "CHECK_EQ failed: " #a " == " #b); \
   } while (0)
 
-#define CHECK_STR_EQ(a, b)                                                                   \
-  do {                                                                                       \
-    edgetest::checks()++;                                                                    \
-    std::string _va = (a);                                                                   \
-    std::string _vb = (b);                                                                   \
-    if (_va != _vb)                                                                          \
-      edgetest::reportFail(__FILE__, __LINE__,                                               \
-                           std::string("CHECK_STR_EQ failed: " #a " == " #b "  got [") +     \
-                               _va + "] expected [" + _vb + "]");                            \
+#define CHECK_STR_EQ(a, b)                                                                     \
+  do {                                                                                         \
+    edgetest::checks()++;                                                                      \
+    std::string _va = (a);                                                                     \
+    std::string _vb = (b);                                                                     \
+    if (_va != _vb)                                                                            \
+      edgetest::reportFail(__FILE__, __LINE__,                                                 \
+                           std::string("CHECK_STR_EQ failed: " #a " == " #b "  got [") + _va + \
+                               "] expected [" + _vb + "]");                                    \
   } while (0)
 
 #endif  // EDGELLM_TEST_FRAMEWORK_H

@@ -24,12 +24,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      # Pin the exact clang-format version used to format the tree, so CI and
+      # local agree byte-for-byte (apt's version drifts and would re-flag).
       - name: Install clang-format
-        run: sudo apt-get update && sudo apt-get install -y clang-format
+        run: pip install "clang-format==18.1.8"
       - name: Check formatting (src + tests)
         run: |
-          find src test -name '*.h' -o -name '*.cpp' \
-            | xargs clang-format --dry-run --Werror
+          find src test \( -name '*.h' -o -name '*.cpp' \) -print0 \
+            | xargs -0 clang-format --dry-run --Werror
 
   static-analysis:
     name: cppcheck

@@ -13,17 +13,21 @@ constexpr char kCrlfCrlf[] = "\r\n\r\n";
 
 std::string trim(const std::string& s) {
   size_t b = 0, e = s.size();
-  while (b < e && (s[b] == ' ' || s[b] == '\t')) ++b;
-  while (e > b && (s[e - 1] == ' ' || s[e - 1] == '\t' || s[e - 1] == '\r')) --e;
+  while (b < e && (s[b] == ' ' || s[b] == '\t'))
+    ++b;
+  while (e > b && (s[e - 1] == ' ' || s[e - 1] == '\t' || s[e - 1] == '\r'))
+    --e;
   return s.substr(b, e - b);
 }
 
 bool containsCaseInsensitive(const std::string& haystack, const char* needle) {
   std::string h;
   h.reserve(haystack.size());
-  for (char c : haystack) h.push_back((c >= 'A' && c <= 'Z') ? c - 'A' + 'a' : c);
+  for (char c : haystack)
+    h.push_back((c >= 'A' && c <= 'Z') ? c - 'A' + 'a' : c);
   std::string n;
-  for (const char* p = needle; *p; ++p) n.push_back(*p);
+  for (const char* p = needle; *p; ++p)
+    n.push_back(*p);
   return h.find(n) != std::string::npos;
 }
 
@@ -251,7 +255,8 @@ Status HttpClient::sendStream(const HttpRequest& req, HttpResponse& outHeaders,
     std::string decoded;
     s = decoder.feed(leftover.data(), leftover.size(), decoded, done);
     if (!s) return s;
-    if (!emit(decoded.data(), decoded.size())) return overflow ? Status::fail(Error::HttpBodyTooLarge) : Status::ok();
+    if (!emit(decoded.data(), decoded.size()))
+      return overflow ? Status::fail(Error::HttpBodyTooLarge) : Status::ok();
     while (!done) {
       const int n = conn_.read(reinterpret_cast<uint8_t*>(buf.data()), buf.size());
       if (n > 0) {

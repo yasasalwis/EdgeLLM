@@ -7,6 +7,8 @@
 #ifndef EDGELLM_LLM_OPENAICHATPROVIDER_H
 #define EDGELLM_LLM_OPENAICHATPROVIDER_H
 
+#include <cstdint>
+
 #include "../Provider.h"
 
 namespace edge {

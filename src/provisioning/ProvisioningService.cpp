@@ -5,7 +5,8 @@ namespace edge {
 namespace {
 std::string trim(const std::string& s) {
   size_t b = 0, e = s.size();
-  while (b < e && (s[b] == ' ' || s[b] == '\t' || s[b] == '\r' || s[b] == '\n')) ++b;
+  while (b < e && (s[b] == ' ' || s[b] == '\t' || s[b] == '\r' || s[b] == '\n'))
+    ++b;
   while (e > b && (s[e - 1] == ' ' || s[e - 1] == '\t' || s[e - 1] == '\r' || s[e - 1] == '\n'))
     --e;
   return s.substr(b, e - b);

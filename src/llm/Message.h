@@ -6,6 +6,8 @@
 #ifndef EDGELLM_LLM_MESSAGE_H
 #define EDGELLM_LLM_MESSAGE_H
 
+#include <cstdint>
+
 #include <string>
 #include <vector>
 

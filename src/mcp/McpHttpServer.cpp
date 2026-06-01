@@ -11,14 +11,22 @@ constexpr size_t kMaxLineLen = 2048;
 
 const char* statusText(int status) {
   switch (status) {
-    case 200: return "OK";
-    case 202: return "Accepted";
-    case 400: return "Bad Request";
-    case 401: return "Unauthorized";
-    case 404: return "Not Found";
-    case 405: return "Method Not Allowed";
-    case 413: return "Payload Too Large";
-    default: return "Error";
+    case 200:
+      return "OK";
+    case 202:
+      return "Accepted";
+    case 400:
+      return "Bad Request";
+    case 401:
+      return "Unauthorized";
+    case 404:
+      return "Not Found";
+    case 405:
+      return "Method Not Allowed";
+    case 413:
+      return "Payload Too Large";
+    default:
+      return "Error";
   }
 }
 
@@ -111,7 +119,8 @@ void McpHttpServer::handle() {
     if (colon == std::string::npos) continue;
     std::string name = line.substr(0, colon);
     std::string value = line.substr(colon + 1);
-    while (!value.empty() && (value.front() == ' ' || value.front() == '\t')) value.erase(0, 1);
+    while (!value.empty() && (value.front() == ' ' || value.front() == '\t'))
+      value.erase(0, 1);
     if (headerIs(name, "content-length")) {
       contentLength = atol(value.c_str());
     } else if (headerIs(name, "authorization")) {

@@ -7,6 +7,8 @@
 #ifndef EDGELLM_TRANSPORT_CHUNKEDDECODER_H
 #define EDGELLM_TRANSPORT_CHUNKEDDECODER_H
 
+#include <cstdint>
+
 #include <cstddef>
 #include <string>
 

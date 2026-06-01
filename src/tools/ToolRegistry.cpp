@@ -93,8 +93,7 @@ Result<ToolResult> ToolRegistry::dispatch(const std::string& name,
   if (!t->hasHandler()) return Result<ToolResult>::fail(Error::InvalidState);
 
   if (!validate(*t, argsJson).isOk()) {
-    return Result<ToolResult>::ok(
-        ToolResult::error("invalid arguments for tool '" + name + "'"));
+    return Result<ToolResult>::ok(ToolResult::error("invalid arguments for tool '" + name + "'"));
   }
   ToolCallArgs args(argsJson);
   return Result<ToolResult>::ok(t->handler(args));

@@ -88,7 +88,8 @@ Status EdgeStore::remove(const std::string& key) {
 std::vector<std::string> EdgeStore::keys() const {
   std::vector<std::string> out;
   out.reserve(data_.size());
-  for (const auto& kv : data_) out.push_back(kv.first);
+  for (const auto& kv : data_)
+    out.push_back(kv.first);
   return out;
 }
 

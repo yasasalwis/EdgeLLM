@@ -62,9 +62,8 @@ TEST(mcp_prompts_list_and_get) {
   PromptRegistry pr;
   pr.addPrompt("greet", "Greeting prompt")
       .arg("name", "who to greet", true)
-      .onGet([](ToolCallArgs& a) {
-        return Result<std::string>::ok("Hello " + a.getString("name"));
-      });
+      .onGet(
+          [](ToolCallArgs& a) { return Result<std::string>::ok("Hello " + a.getString("name")); });
   s.setPromptRegistry(&pr);
 
   JsonDocument list = call(s, R"({"jsonrpc":"2.0","id":1,"method":"prompts/list"})");
@@ -73,7 +72,8 @@ TEST(mcp_prompts_list_and_get) {
   CHECK(list["result"]["prompts"][0]["arguments"][0]["required"].as<bool>());
 
   JsonDocument get = call(
-      s, R"({"jsonrpc":"2.0","id":2,"method":"prompts/get","params":{"name":"greet","arguments":{"name":"Ada"}}})");
+      s,
+      R"({"jsonrpc":"2.0","id":2,"method":"prompts/get","params":{"name":"greet","arguments":{"name":"Ada"}}})");
   CHECK_STR_EQ(jstr(get["result"]["messages"][0]["role"]), "user");
   CHECK_STR_EQ(jstr(get["result"]["messages"][0]["content"]["text"]), "Hello Ada");
 }
@@ -81,12 +81,13 @@ TEST(mcp_prompts_list_and_get) {
 TEST(mcp_prompts_get_missing_required_arg_errors) {
   McpServer s("x", "1");
   PromptRegistry pr;
-  pr.addPrompt("greet", "Greeting")
-      .arg("name", "who", true)
-      .onGet([](ToolCallArgs&) { return Result<std::string>::ok("hi"); });
+  pr.addPrompt("greet", "Greeting").arg("name", "who", true).onGet([](ToolCallArgs&) {
+    return Result<std::string>::ok("hi");
+  });
   s.setPromptRegistry(&pr);
   JsonDocument d = call(
-      s, R"({"jsonrpc":"2.0","id":1,"method":"prompts/get","params":{"name":"greet","arguments":{}}})");
+      s,
+      R"({"jsonrpc":"2.0","id":1,"method":"prompts/get","params":{"name":"greet","arguments":{}}})");
   CHECK_EQ(d["error"]["code"].as<int>(), -32602);
 }
 

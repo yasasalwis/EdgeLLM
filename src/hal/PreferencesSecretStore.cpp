@@ -25,7 +25,8 @@ std::string PreferencesSecretStore::shortKey(const std::string& key) const {
   char buf[10];
   static const char* hex = "0123456789abcdef";
   buf[0] = 'k';
-  for (int i = 0; i < 8; ++i) buf[1 + i] = hex[(h >> ((7 - i) * 4)) & 0xF];
+  for (int i = 0; i < 8; ++i)
+    buf[1 + i] = hex[(h >> ((7 - i) * 4)) & 0xF];
   buf[9] = '\0';
   return std::string(buf);
 }
@@ -43,7 +44,8 @@ Status PreferencesSecretStore::set(const std::string& key, const std::string& va
 
 Result<std::string> PreferencesSecretStore::get(const std::string& key) {
   Preferences prefs;
-  if (!prefs.begin(ns_, /*readOnly=*/true)) return Result<std::string>::fail(Error::SecretStoreError);
+  if (!prefs.begin(ns_, /*readOnly=*/true))
+    return Result<std::string>::fail(Error::SecretStoreError);
   const std::string sk = shortKey(key);
   if (!prefs.isKey(sk.c_str())) {
     prefs.end();

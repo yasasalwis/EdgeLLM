@@ -17,10 +17,10 @@ TEST(conversation_accumulates_turns) {
 }
 
 TEST(conversation_trims_oldest_over_budget) {
-  Conversation c(60);  // tiny budget forces trimming
-  c.addUser("aaaaaaaaaaaaaaaaaaaa");        // 20 + overhead
-  c.addAssistant("bbbbbbbbbbbbbbbbbbbb");    // 20 + overhead
-  c.addUser("cccccccccccccccccccc");        // 20 + overhead -> over budget
+  Conversation c(60);                      // tiny budget forces trimming
+  c.addUser("aaaaaaaaaaaaaaaaaaaa");       // 20 + overhead
+  c.addAssistant("bbbbbbbbbbbbbbbbbbbb");  // 20 + overhead
+  c.addUser("cccccccccccccccccccc");       // 20 + overhead -> over budget
   // Oldest message(s) dropped; most recent retained.
   CHECK(c.approxBytes() <= 60 || c.size() == 1);
   CHECK_STR_EQ(c.messages().back().content, "cccccccccccccccccccc");

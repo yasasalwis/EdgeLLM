@@ -15,6 +15,8 @@
 #ifndef EDGELLM_MCP_MCPSERVER_H
 #define EDGELLM_MCP_MCPSERVER_H
 
+#include <cstdint>
+
 #include <string>
 
 #include "../core/Logger.h"
@@ -26,11 +28,11 @@
 namespace edge {
 
 struct McpReply {
-  std::string body;               // JSON response body (empty for notification-only)
-  int httpStatus = 200;           // HTTP status the glue should send
+  std::string body;                 // JSON response body (empty for notification-only)
+  int httpStatus = 200;             // HTTP status the glue should send
   bool isNotificationOnly = false;  // true -> 202 Accepted, no body
-  std::string sessionId;          // set on initialize
-  bool setSession = false;        // glue should emit Mcp-Session-Id
+  std::string sessionId;            // set on initialize
+  bool setSession = false;          // glue should emit Mcp-Session-Id
 };
 
 class McpServer {

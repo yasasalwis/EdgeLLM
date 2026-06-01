@@ -32,7 +32,8 @@ class PromptRegistry;
 
 class PromptBuilder {
  public:
-  PromptBuilder& arg(const std::string& name, const std::string& description, bool required = false);
+  PromptBuilder& arg(const std::string& name, const std::string& description,
+                     bool required = false);
   PromptBuilder& onGet(std::function<Result<std::string>(ToolCallArgs&)> handler);
 
  private:

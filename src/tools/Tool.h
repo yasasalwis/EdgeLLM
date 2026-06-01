@@ -23,7 +23,7 @@ struct Tool {
 
   // Annotations surfaced to MCP hosts (readOnly/destructive hints) and used by
   // the MCP server's deny-by-default write gate. Not enforced by the agent loop.
-  bool mutating = false;     // true if the tool changes state (a "write")
+  bool mutating = false;      // true if the tool changes state (a "write")
   bool writeAllowed = false;  // MCP: a mutating tool stays disabled until this is set
 
   ToolHandler handler;

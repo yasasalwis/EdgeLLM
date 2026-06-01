@@ -37,7 +37,7 @@ TEST(response_schema_validates_payloads) {
   s.field("b", ParamType::String, "", false);
   CHECK(s.validate(R"({"a":5})").isOk());
   CHECK(s.validate(R"({"a":5,"b":"hi"})").isOk());
-  CHECK_EQ(s.validate(R"({})").error(), Error::SchemaValidationFailed);      // missing required
+  CHECK_EQ(s.validate(R"({})").error(), Error::SchemaValidationFailed);         // missing required
   CHECK_EQ(s.validate(R"({"a":"x"})").error(), Error::SchemaValidationFailed);  // wrong type
   CHECK_EQ(s.validate("not json").error(), Error::SchemaValidationFailed);
 }

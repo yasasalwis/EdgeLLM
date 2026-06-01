@@ -84,13 +84,13 @@ bool isBlockedHost(const std::string& hostIn) {
 
   int o[4];
   if (parseIpv4(host, o)) {
-    if (o[0] == 127) return true;                                 // loopback
-    if (o[0] == 10) return true;                                  // private
-    if (o[0] == 172 && o[1] >= 16 && o[1] <= 31) return true;     // private
-    if (o[0] == 192 && o[1] == 168) return true;                  // private
-    if (o[0] == 169 && o[1] == 254) return true;                  // link-local + metadata
-    if (o[0] == 0) return true;                                   // "this" network
-    if (o[0] == 100 && o[1] >= 64 && o[1] <= 127) return true;    // CGNAT
+    if (o[0] == 127) return true;                               // loopback
+    if (o[0] == 10) return true;                                // private
+    if (o[0] == 172 && o[1] >= 16 && o[1] <= 31) return true;   // private
+    if (o[0] == 192 && o[1] == 168) return true;                // private
+    if (o[0] == 169 && o[1] == 254) return true;                // link-local + metadata
+    if (o[0] == 0) return true;                                 // "this" network
+    if (o[0] == 100 && o[1] >= 64 && o[1] <= 127) return true;  // CGNAT
     return false;
   }
 
@@ -99,8 +99,7 @@ bool isBlockedHost(const std::string& hostIn) {
     if (host == "::1" || host == "[::1]") return true;  // loopback
     const std::string h = (!host.empty() && host[0] == '[') ? host.substr(1) : host;
     if (h.compare(0, 4, "fe80") == 0) return true;  // link-local
-    if (!h.empty() && (h[0] == 'f') && (h.size() > 1) &&
-        (h[1] == 'c' || h[1] == 'd'))
+    if (!h.empty() && (h[0] == 'f') && (h.size() > 1) && (h[1] == 'c' || h[1] == 'd'))
       return true;  // unique-local fc00::/7
     return false;
   }

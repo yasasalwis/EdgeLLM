@@ -13,8 +13,8 @@ namespace edge {
 constexpr float kUnsetTemperature = -1.0f;
 
 struct ChatOptions {
-  std::string model;     // provider model id; empty -> provider's default
-  std::string system;    // system prompt; empty -> none
+  std::string model;   // provider model id; empty -> provider's default
+  std::string system;  // system prompt; empty -> none
   uint32_t maxTokens = 1024;
   float temperature = kUnsetTemperature;  // [0,2] typical; unset -> not sent
 

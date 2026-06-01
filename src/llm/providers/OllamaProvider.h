@@ -6,6 +6,8 @@
 #ifndef EDGELLM_LLM_OLLAMAPROVIDER_H
 #define EDGELLM_LLM_OLLAMAPROVIDER_H
 
+#include <cstdint>
+
 #include "../Provider.h"
 
 namespace edge {

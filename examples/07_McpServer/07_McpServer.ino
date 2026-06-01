@@ -16,6 +16,10 @@
 
 #include "arduino_secrets.h"
 
+#ifndef LED_BUILTIN
+#define LED_BUILTIN 2  // most ESP32 dev boards expose the onboard LED on GPIO2
+#endif
+
 edge::Logger logger;
 edge::SerialLogSink serialSink;
 

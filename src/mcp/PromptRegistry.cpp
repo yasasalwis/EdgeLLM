@@ -43,7 +43,8 @@ const Prompt* PromptRegistry::find(const std::string& name) const {
   return nullptr;
 }
 
-Result<std::string> PromptRegistry::get(const std::string& name, const std::string& argsJson) const {
+Result<std::string> PromptRegistry::get(const std::string& name,
+                                        const std::string& argsJson) const {
   const Prompt* p = find(name);
   if (p == nullptr) return Result<std::string>::fail(Error::NotFound);
   if (!p->onGet) return Result<std::string>::fail(Error::InvalidState);

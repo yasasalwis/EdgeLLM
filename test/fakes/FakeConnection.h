@@ -17,8 +17,8 @@ namespace edgetest {
 
 class FakeConnection : public edge::IConnection {
  public:
-  std::string toSend;   // bytes the fake server returns to the client
-  std::string written;  // captures bytes the client sent (across all connects)
+  std::string toSend;    // bytes the fake server returns to the client
+  std::string written;   // captures bytes the client sent (across all connects)
   size_t chunkSize = 0;  // 0 = give everything available per read; else cap per read
   bool closeWhenDrained = true;
   bool stall = false;  // when true, reads always return 0 and stay connected

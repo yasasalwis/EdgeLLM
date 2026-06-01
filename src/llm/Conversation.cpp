@@ -10,7 +10,8 @@ constexpr size_t kPerMessageOverhead = 16;
 
 size_t Conversation::approxBytes() const {
   size_t total = 0;
-  for (const auto& m : messages_) total += m.content.size() + kPerMessageOverhead;
+  for (const auto& m : messages_)
+    total += m.content.size() + kPerMessageOverhead;
   return total;
 }
 

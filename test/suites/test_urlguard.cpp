@@ -34,6 +34,6 @@ TEST(urlguard_allows_public_hosts) {
 TEST(urlguard_url_allowed_combines_scheme_and_host) {
   CHECK(isUrlAllowed("https://api.openai.com/v1/chat"));
   CHECK(!isUrlAllowed("http://169.254.169.254/latest/meta-data/"));  // metadata SSRF
-  CHECK(!isUrlAllowed("ftp://example.com/file"));                     // non-http scheme
+  CHECK(!isUrlAllowed("ftp://example.com/file"));                    // non-http scheme
   CHECK(!isUrlAllowed("https://localhost:8080/admin"));
 }

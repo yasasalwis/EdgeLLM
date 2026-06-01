@@ -3,9 +3,7 @@
 namespace edge {
 
 namespace {
-char asciiLower(char c) {
-  return (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c;
-}
+char asciiLower(char c) { return (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c; }
 }  // namespace
 
 bool headerNameEquals(const std::string& a, const std::string& b) {

@@ -61,8 +61,8 @@ TEST(openai_build_tool_request_advertises_tools) {
   JsonDocument d = parse(req.body);
   CHECK_STR_EQ(std::string(d["tools"][0]["type"].as<const char*>()), "function");
   CHECK_STR_EQ(std::string(d["tools"][0]["function"]["name"].as<const char*>()), "add");
-  CHECK_STR_EQ(
-      std::string(d["tools"][0]["function"]["parameters"]["type"].as<const char*>()), "object");
+  CHECK_STR_EQ(std::string(d["tools"][0]["function"]["parameters"]["type"].as<const char*>()),
+               "object");
 }
 
 TEST(openai_serializes_tool_turn_and_result) {
@@ -76,8 +76,8 @@ TEST(openai_serializes_tool_turn_and_result) {
   JsonArrayConst msgs = d["messages"];
   CHECK_EQ(msgs.size(), static_cast<size_t>(3));
   CHECK_STR_EQ(std::string(d["messages"][1]["role"].as<const char*>()), "assistant");
-  CHECK_STR_EQ(
-      std::string(d["messages"][1]["tool_calls"][0]["function"]["name"].as<const char*>()), "add");
+  CHECK_STR_EQ(std::string(d["messages"][1]["tool_calls"][0]["function"]["name"].as<const char*>()),
+               "add");
   CHECK_STR_EQ(std::string(d["messages"][2]["role"].as<const char*>()), "tool");
   CHECK_STR_EQ(std::string(d["messages"][2]["tool_call_id"].as<const char*>()), "call_1");
   CHECK_STR_EQ(std::string(d["messages"][2]["content"].as<const char*>()), "5");
@@ -133,9 +133,9 @@ TEST(anthropic_serializes_tool_use_and_result_blocks) {
 
   CHECK_STR_EQ(std::string(d["messages"][2]["role"].as<const char*>()), "user");
   CHECK_STR_EQ(std::string(d["messages"][2]["content"][0]["type"].as<const char*>()),
-              "tool_result");
+               "tool_result");
   CHECK_STR_EQ(std::string(d["messages"][2]["content"][0]["tool_use_id"].as<const char*>()),
-              "call_1");
+               "call_1");
 }
 
 TEST(anthropic_parses_tool_use_response) {
@@ -167,8 +167,8 @@ TEST(gemini_build_tool_request_declares_functions) {
   HttpRequest req;
   CHECK(p.buildToolRequest(m, ChatOptions{}, reg, req).isOk());
   JsonDocument d = parse(req.body);
-  CHECK_STR_EQ(
-      std::string(d["tools"][0]["functionDeclarations"][0]["name"].as<const char*>()), "add");
+  CHECK_STR_EQ(std::string(d["tools"][0]["functionDeclarations"][0]["name"].as<const char*>()),
+               "add");
 }
 
 TEST(gemini_serializes_function_call_and_response) {
@@ -179,8 +179,8 @@ TEST(gemini_serializes_function_call_and_response) {
   JsonDocument d = parse(req.body);
   // contents: [user, model(functionCall), user(functionResponse)]
   CHECK_STR_EQ(std::string(d["contents"][1]["role"].as<const char*>()), "model");
-  CHECK_STR_EQ(
-      std::string(d["contents"][1]["parts"][0]["functionCall"]["name"].as<const char*>()), "add");
+  CHECK_STR_EQ(std::string(d["contents"][1]["parts"][0]["functionCall"]["name"].as<const char*>()),
+               "add");
   CHECK_EQ(d["contents"][1]["parts"][0]["functionCall"]["args"]["a"].as<int>(), 2);
   CHECK_STR_EQ(
       std::string(d["contents"][2]["parts"][0]["functionResponse"]["name"].as<const char*>()),

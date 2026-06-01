@@ -16,8 +16,8 @@ std::string http200(const std::string& body) {
   return "HTTP/1.1 200 OK\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
 }
 std::string httpStatus(int code, const std::string& reason, const std::string& body) {
-  return "HTTP/1.1 " + std::to_string(code) + " " + reason + "\r\nContent-Length: " +
-         std::to_string(body.size()) + "\r\n\r\n" + body;
+  return "HTTP/1.1 " + std::to_string(code) + " " + reason +
+         "\r\nContent-Length: " + std::to_string(body.size()) + "\r\n\r\n" + body;
 }
 // An OpenAI structured response whose message.content is the JSON string `inner`.
 std::string openAiStructured(const std::string& innerJsonEscaped) {

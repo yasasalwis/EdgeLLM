@@ -4,6 +4,8 @@
 #ifndef EDGELLM_TRANSPORT_HTTPTYPES_H
 #define EDGELLM_TRANSPORT_HTTPTYPES_H
 
+#include <cstdint>
+
 #include <string>
 #include <utility>
 #include <vector>
@@ -37,8 +39,8 @@ struct HttpRequest {
 };
 
 struct HttpResponse {
-  int status = 0;            // e.g. 200
-  std::string reason;        // e.g. "OK"
+  int status = 0;      // e.g. 200
+  std::string reason;  // e.g. "OK"
   std::vector<Header> headers;
   std::string body;
 

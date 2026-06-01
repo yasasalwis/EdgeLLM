@@ -9,11 +9,16 @@ constexpr size_t kMinSecretLen = 4;
 
 const char* logLevelName(LogLevel level) {
   switch (level) {
-    case LogLevel::Debug: return "DEBUG";
-    case LogLevel::Info: return "INFO";
-    case LogLevel::Warn: return "WARN";
-    case LogLevel::Error: return "ERROR";
-    case LogLevel::None: return "NONE";
+    case LogLevel::Debug:
+      return "DEBUG";
+    case LogLevel::Info:
+      return "INFO";
+    case LogLevel::Warn:
+      return "WARN";
+    case LogLevel::Error:
+      return "ERROR";
+    case LogLevel::None:
+      return "NONE";
   }
   return "?";
 }

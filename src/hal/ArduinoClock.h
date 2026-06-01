@@ -4,6 +4,8 @@
 #ifndef EDGELLM_HAL_ARDUINOCLOCK_H
 #define EDGELLM_HAL_ARDUINOCLOCK_H
 
+#include <cstdint>
+
 #include "Platform.h"
 
 #if defined(EDGELLM_HAS_ARDUINO)

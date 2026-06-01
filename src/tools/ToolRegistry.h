@@ -26,7 +26,7 @@ class ToolBuilder {
                      bool required = true);
   ToolBuilder& paramEnum(const std::string& name, const std::string& description,
                          std::vector<std::string> allowed, bool required = true);
-  ToolBuilder& mutating(bool value = true);   // mark as a state-changing "write"
+  ToolBuilder& mutating(bool value = true);    // mark as a state-changing "write"
   ToolBuilder& allowWrite(bool value = true);  // MCP gate: permit the write
   ToolBuilder& onCall(ToolHandler handler);
 

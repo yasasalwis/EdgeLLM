@@ -17,12 +17,18 @@ enum class ParamType : uint8_t { String, Number, Integer, Boolean, Object, Array
 // Maps a ParamType to its JSON Schema "type" keyword.
 inline const char* paramTypeName(ParamType t) {
   switch (t) {
-    case ParamType::String: return "string";
-    case ParamType::Number: return "number";
-    case ParamType::Integer: return "integer";
-    case ParamType::Boolean: return "boolean";
-    case ParamType::Object: return "object";
-    case ParamType::Array: return "array";
+    case ParamType::String:
+      return "string";
+    case ParamType::Number:
+      return "number";
+    case ParamType::Integer:
+      return "integer";
+    case ParamType::Boolean:
+      return "boolean";
+    case ParamType::Object:
+      return "object";
+    case ParamType::Array:
+      return "array";
   }
   return "string";
 }
@@ -44,17 +50,23 @@ struct ToolCall {
 
 // The outcome of running a tool, fed back to the model.
 struct ToolResult {
-  std::string content;     // textual or JSON result
-  bool isError = false;    // true if the tool failed (model is told so)
+  std::string content;   // textual or JSON result
+  bool isError = false;  // true if the tool failed (model is told so)
 
-  static ToolResult ok(std::string text) { return ToolResult{std::move(text), false}; }
-  static ToolResult error(std::string text) { return ToolResult{std::move(text), true}; }
+  // Explicit constructors (not aggregate init): a default member initializer
+  // makes this a non-aggregate under -std=gnu++11 (used by some Arduino cores),
+  // so brace-aggregate construction would not compile there.
+  ToolResult() = default;
+  ToolResult(std::string c, bool err) : content(std::move(c)), isError(err) {}
+
+  static ToolResult ok(std::string text) { return ToolResult(std::move(text), false); }
+  static ToolResult error(std::string text) { return ToolResult(std::move(text), true); }
 };
 
 // One assistant turn parsed from a (non-streaming) tool-enabled response.
 struct AgentTurn {
-  std::string text;                  // any assistant text in this turn
-  std::vector<ToolCall> toolCalls;   // tools the model wants run (may be empty)
+  std::string text;                 // any assistant text in this turn
+  std::vector<ToolCall> toolCalls;  // tools the model wants run (may be empty)
   std::string finishReason;
   uint32_t inputTokens = 0;
   uint32_t outputTokens = 0;

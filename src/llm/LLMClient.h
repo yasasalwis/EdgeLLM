@@ -11,6 +11,8 @@
 #ifndef EDGELLM_LLM_LLMCLIENT_H
 #define EDGELLM_LLM_LLMCLIENT_H
 
+#include <cstdint>
+
 #include "../core/Logger.h"
 #include "../tools/ToolRegistry.h"
 #include "../transport/HttpClient.h"

@@ -46,6 +46,7 @@
 // emit a wall of "std::string does not name a type" errors, fail early with a
 // clear message pointing at the supported boards.
 // ---------------------------------------------------------------------------
+// clang-format off
 #if defined(EDGELLM_HAS_ARDUINO)
 #if defined(__has_include)
 #if !__has_include(<string>)
@@ -55,5 +56,6 @@
 #error "EdgeLLM is not supported on AVR (classic Arduino Uno/Mega). Use a 32-bit WiFi core — ESP32, ESP8266, Uno R4 WiFi, Nano 33 IoT / MKR, or Portenta."
 #endif
 #endif
+// clang-format on
 
 #endif  // EDGELLM_HAL_PLATFORM_H
