@@ -12,6 +12,8 @@ Logger	KEYWORD1
 LogLevel	KEYWORD1
 SecretStore	KEYWORD1
 MemorySecretStore	KEYWORD1
+PreferencesSecretStore	KEYWORD1
+EepromSecretStore	KEYWORD1
 TimeSource	KEYWORD1
 HttpClient	KEYWORD1
 HttpRequest	KEYWORD1

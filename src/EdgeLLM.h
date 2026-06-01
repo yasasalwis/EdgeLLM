@@ -34,6 +34,8 @@
 
 // --- HAL: on-device only (guarded internally) ---
 #include "hal/PreferencesSecretStore.h"
+#include "hal/EepromCodec.h"
+#include "hal/EepromSecretStore.h"
 #include "hal/ArduinoConnection.h"
 #include "hal/NtpTimeSource.h"
 #include "hal/SerialLogSink.h"

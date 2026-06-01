@@ -45,14 +45,19 @@ feature stands on verified ground:
 | Board family            | Compiles | TLS client | Persistent secrets | Full-duplex |
 |-------------------------|:--------:|:----------:|:------------------:|:-----------:|
 | **ESP32** (reference)   | ✅       | ✅ verified | ✅ NVS             | ✅ FreeRTOS |
-| ESP8266                 | ✅       | ✅ (1 conn) | ✅ flash KV        | ❌ coop      |
-| Arduino Uno R4 WiFi     | ✅       | ⚠️ firmware store¹ | ⏳ Phase 5    | ❌ coop      |
-| Nano 33 IoT / MKR (NINA)| ✅       | ⚠️ firmware store¹ | ⏳ Phase 5    | ❌ coop      |
-| Portenta (mbed)         | ⏳ later   | ⏳        | ⏳                 | ✅ mbed RTOS |
+| ESP8266                 | ✅       | ✅ (1 conn) | ⏳ (RAM)           | ❌ coop      |
+| Arduino Uno R4 WiFi     | ✅       | ⚠️ firmware store¹ | ✅ EEPROM     | ❌ coop      |
+| Nano 33 IoT / MKR (NINA)| ✅       | ⚠️ firmware store¹ | ✅ flash²     | ❌ coop      |
+| Portenta (mbed)         | ✅       | ⚠️ firmware store¹ | ⏳ (RAM)      | ✅ mbed RTOS |
 
-¹ On WiFiNINA / WiFiS3 boards the trust store lives in the WiFi co-processor
-firmware; per-connection CA pinning is a post-1.0 item. ESP32 is the
-fully-validated reference target.
+All five compile in CI. ¹ On WiFiNINA / WiFiS3 / mbed boards the trust store
+lives in the WiFi co-processor firmware; per-connection CA pinning is a post-1.0
+item — ESP32 is the fully-validated TLS target. ² SAMD persistence uses the
+`FlashStorage` library (emulated EEPROM).
+
+> **Verification note:** every board family above is **compile-verified** (the
+> full library + an example build cleanly, including the gnu++11 SAMD toolchain).
+> On-hardware runtime validation is still pending — see [COMPLETION.md](COMPLETION.md).
 
 > **Not supported: classic AVR Arduino (Uno / Mega) + a WiFi shield.** Those chips
 > have no C++ STL and only a few KB of RAM — they cannot do TLS to a cloud LLM and
@@ -61,9 +66,10 @@ fully-validated reference target.
 > core (the table above). "Arduino + WiFi" that *is* supported means the Uno R4
 > WiFi or a MKR/Nano 33 IoT with WiFiNINA.
 
-The persistent secret store is implemented for **ESP32 (NVS)**; other boards use
-the in-RAM store (sketch supplies secrets at boot, e.g. via Serial provisioning)
-until their native flash backends land.
+Persistent secret storage: **ESP32** (NVS, `PreferencesSecretStore`), **Uno R4 /
+SAMD** (`EepromSecretStore`). ESP8266 and Portenta currently use the in-RAM store
+(supply secrets at boot, e.g. via Serial provisioning) until their flash backends
+land.
 
 ## Install
 

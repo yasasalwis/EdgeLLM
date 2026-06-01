@@ -27,6 +27,7 @@ set(EDGELLM_PURE_SOURCES
     src/transport/ChunkedDecoder.cpp
     src/transport/HttpClient.cpp
     src/hal/MemorySecretStore.cpp
+    src/hal/EepromCodec.cpp
     src/tools/ToolCallArgs.cpp
     src/tools/ToolRegistry.cpp
     src/tools/SchemaUtil.cpp
@@ -51,6 +52,7 @@ set(EDGELLM_TEST_SOURCES
     test/suites/test_chunked.cpp
     test/suites/test_httpclient.cpp
     test/suites/test_secretstore.cpp
+    test/suites/test_eepromcodec.cpp
     test/suites/test_conversation.cpp
     test/suites/test_structured.cpp
     test/suites/test_providers.cpp

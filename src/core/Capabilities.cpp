@@ -43,7 +43,7 @@ Capabilities detectCapabilities() {
   c.heapBudget = 24000;  // SAMD21/51 with WiFiNINA
   c.maxTlsConnections = 1;
   c.supportsFullDuplex = false;
-  c.supportsPersistentStore = false;  // no standard NVS; sketch must provide
+  c.supportsPersistentStore = true;  // via EepromSecretStore (FlashStorage)
   c.recvBufferSize = 512;
   c.maxResponseBody = 8192;
 

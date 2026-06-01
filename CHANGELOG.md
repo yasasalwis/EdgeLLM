@@ -3,6 +3,36 @@
 All notable changes to EdgeLLM are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow SemVer.
 
+## [0.6.1] — Cross-board: Portenta + persistent store for Uno R4 / SAMD
+
+### Added
+- **Portenta H7 support** — new `portenta_h7` PlatformIO env + CI matrix entry.
+  The full library and a networking example (WiFi + TLS + NTP + structured
+  generate) compile and link for the mbed core.
+- **`EepromSecretStore`** — persistent secret/KV store for non-ESP32 boards, over
+  the Arduino EEPROM API: **Uno R4 WiFi** (built-in EEPROM) and **SAMD / Nano 33
+  IoT** (via the `FlashStorage` library's emulated EEPROM). Usable directly or as
+  an `EdgeStore` persistence backend.
+- **`EepromCodec`** — pure, host-unit-tested serializer for the store's byte
+  layout (magic/version/length-prefixed entries; truncation- and corruption-safe).
+- Example `08_Provisioning` now selects the persistent backend per board (NVS on
+  ESP32, EEPROM/flash on Uno R4 / SAMD, RAM elsewhere).
+
+### Changed
+- Per-board status table corrected: Uno R4 / SAMD now have persistent secrets;
+  ESP8266 persistent storage is honestly marked RAM-only (it is not ESP32, so it
+  had no NVS backend — the earlier "flash KV" label was inaccurate).
+
+### Verified
+- All five board families (ESP32, ESP8266, Uno R4, SAMD/Nano 33 IoT, Portenta)
+  **compile-verified** locally with PlatformIO; +6 native tests (EEPROM codec)
+  for 145 total.
+
+### Still deferred (post-1.0)
+- Per-connection TLS CA pinning on WiFiNINA / WiFiS3 / mbed (co-processor firmware
+  trust model); ESP8266 / Portenta persistent backends; on-hardware runtime
+  validation.
+
 ## [0.6.0] — Structured output only (BREAKING)
 
 The LLM client now returns **structured output exclusively**: you supply system +

@@ -72,10 +72,13 @@ explicitly wherever results are claimed.
 1. **Hardware not yet validated.** Native logic + CI compiles are green; no
    physical-board run has been performed by the author. Run the examples per
    `RUNBOOK.md` before relying on it in production.
-2. **TLS CA pinning is ESP32-complete.** On WiFiNINA / WiFiS3 boards, trust uses
-   the WiFi co-processor's firmware store; per-connection pinning is not yet wired.
-3. **Persistent secret/KV store is ESP32 (NVS) only.** Other boards use the
-   in-RAM store; provide an `ISecretStore` backend to persist there.
+2. **TLS CA pinning is ESP32-complete.** On WiFiNINA / WiFiS3 / mbed boards, trust
+   uses the WiFi co-processor's firmware store; per-connection pinning is not yet
+   wired (`setCACert()` is a no-op there).
+3. **Persistent secret/KV store coverage.** ESP32 (NVS) and Uno R4 / SAMD
+   (`EepromSecretStore`) persist; **ESP8266 and Portenta** still use the in-RAM
+   store — provide an `ISecretStore` backend (or extend `EepromSecretStore`) to
+   persist there.
 4. **MCP transport is request/response only.** Server-initiated SSE streaming
    (GET stream / notifications) returns 405 (spec-permitted); not implemented.
 5. **No captive-portal provisioning.** Provisioning is Serial-based; a portal

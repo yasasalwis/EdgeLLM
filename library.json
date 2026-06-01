@@ -1,6 +1,6 @@
 {
   "name": "EdgeLLM",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Talk to Claude, Gemini, ChatGPT and Ollama from Arduino, and expose your device to LLMs over the Model Context Protocol (MCP). Two independent features (LLM client + MCP server), capability-tiered across ESP32, ESP8266, Uno R4 WiFi, Nano 33 IoT/MKR and Portenta. Secure by default.",
   "keywords": [
     "llm",
