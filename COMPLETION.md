@@ -27,7 +27,7 @@ explicitly wherever results are claimed.
 |---|---|---|
 | Secure HTTP transport (TLS, chunked, SSE), bounded memory | ✅ | native tests |
 | LLM client — Anthropic, OpenAI, Gemini, Ollama, OpenAI-compatible | ✅ | native tests |
-| Blocking + streaming chat (SSE + NDJSON) | ✅ | native tests |
+| Structured output (schema-validated JSON, native per provider) | ✅ | native tests |
 | Conversation history (optional, budgeted) | ✅ | native tests |
 | Tool calling / agent loop — all 5 providers | ✅ | native tests |
 | Shared ToolRegistry (fluent, schema, validation) | ✅ | native tests |
@@ -83,7 +83,7 @@ explicitly wherever results are claimed.
 
 ## Recommended next phase (ranked by impact)
 
-1. **Hardware validation pass** on an ESP32 (chat, streaming, agent loop, MCP
+1. **Hardware validation pass** on an ESP32 (structured generate, agent loop, MCP
    Inspector connection) — closes the one open verification tier.
 2. Cross-board TLS pinning + persistent backends (Uno R4 / NINA / Portenta).
 3. MCP server-push SSE for long-running tools / notifications.
