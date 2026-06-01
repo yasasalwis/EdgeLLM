@@ -84,7 +84,7 @@ jobs:
       - name: Build network + LLM + MCP examples — ESP32 only
         if: matrix.env == 'esp32dev'
         run: |
-          for ex in 02_WiFiHealthCheck 03_CloudChat 04_StreamingChat 05_OllamaLocal 06_AgentTools 07_McpServer; do
+          for ex in 02_WiFiHealthCheck 03_CloudChat 04_DataExtraction 05_OllamaLocal 06_AgentTools 07_McpServer; do
             cp examples/$ex/arduino_secrets.h.example examples/$ex/arduino_secrets.h
             pio ci --project-conf platformio.ini -e esp32dev --lib="." examples/$ex
           done

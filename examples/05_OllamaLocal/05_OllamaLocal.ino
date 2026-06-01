@@ -1,8 +1,7 @@
-// EdgeLLM — Example 05: Local Ollama (no cloud, no API key)
+// EdgeLLM — Example 05: Local Ollama, structured output (no cloud, no key)
 //
-// Streams a reply from an Ollama server on your LAN over plain HTTP. This is the
-// fully-local path: no cloud, no TLS, no key. Target: ESP32 (works on other
-// WiFi boards too since there's no TLS).
+// Gets a schema-validated JSON object from an Ollama server on your LAN over
+// plain HTTP. Fully local: no cloud, no TLS, no key. Works on any WiFi board.
 //
 // Prereqs: ArduinoJson installed; an Ollama server reachable on your LAN
 // (`ollama serve`, model pulled); arduino_secrets.h filled in.
@@ -35,13 +34,20 @@ void setup() {
   edge::LLMClient client(provider, conn, &logger);
   client.setClock(edge::edgeArduinoMillis);
   client.setTimeout(60000);  // local models can be slower to first token
-  client.options().maxTokens = 200;
 
-  Serial.println("\n--- streaming reply (local) ---");
-  edge::Status s = client.chatStream("Give me one fun fact about microcontrollers.",
-                                     [](const std::string& d) { Serial.print(d.c_str()); });
-  Serial.println("\n--- end ---");
-  if (!s.isOk()) logger.error(std::string("ollama chat failed: ") + s.message());
+  edge::ResponseSchema schema("fact");
+  schema.field("subject", edge::ParamType::String, "what the fact is about")
+      .field("fact", edge::ParamType::String, "one interesting fact")
+      .field("surprising", edge::ParamType::Boolean, "is it surprising?");
+
+  edge::Result<edge::StructuredResult> r =
+      client.generate(schema, "You return one concise fact as JSON.", "Tell me about microcontrollers.");
+  if (!r.isOk()) {
+    logger.error(std::string("ollama generate failed: ") + r.message());
+    return;
+  }
+  logger.info(std::string("subject: ") + r.value().getString("subject"));
+  logger.info(std::string("fact:    ") + r.value().getString("fact"));
 }
 
 void loop() { delay(1000); }

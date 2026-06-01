@@ -4,16 +4,14 @@
 
 namespace edge {
 
-Status AnthropicProvider::buildChatRequest(const MessageList& messages, const ChatOptions& options,
-                                           bool stream, HttpRequest& out) {
+Status AnthropicProvider::buildStructuredRequest(const MessageList& messages,
+                                                 const ChatOptions& options,
+                                                 const ResponseSchema& schema, HttpRequest& out) {
   JsonDocument doc;
   doc["model"] = options.model.empty() ? defaultModel_ : options.model;
   doc["max_tokens"] = options.maxTokens;
   if (options.hasTemperature()) doc["temperature"] = options.temperature;
-  if (stream) doc["stream"] = true;
 
-  // System prompt is a top-level field. Fold in both ChatOptions.system and any
-  // inline System-role messages.
   std::string system = options.system;
   for (const auto& m : messages) {
     if (m.role == Role::System) {
@@ -25,11 +23,23 @@ Status AnthropicProvider::buildChatRequest(const MessageList& messages, const Ch
 
   JsonArray arr = doc["messages"].to<JsonArray>();
   for (const auto& m : messages) {
-    if (m.role == Role::System) continue;  // handled above
+    if (m.role == Role::System) continue;
     JsonObject o = arr.add<JsonObject>();
     o["role"] = (m.role == Role::Assistant) ? "assistant" : "user";
     o["content"] = m.content;
   }
+
+  // Anthropic has no response_format; structured output is achieved by exposing
+  // a single tool whose input_schema is the response schema and forcing its use.
+  JsonArray toolsArr = doc["tools"].to<JsonArray>();
+  JsonObject tool = toolsArr.add<JsonObject>();
+  tool["name"] = schema.name();
+  tool["description"] = "Return the result in the required structure.";
+  JsonObject inputSchema = tool["input_schema"].to<JsonObject>();
+  schema.writeSchema(inputSchema);
+  JsonObject choice = doc["tool_choice"].to<JsonObject>();
+  choice["type"] = "tool";
+  choice["name"] = schema.name();
 
   out.method = "POST";
   out.host = "api.anthropic.com";
@@ -43,48 +53,30 @@ Status AnthropicProvider::buildChatRequest(const MessageList& messages, const Ch
   return Status::ok();
 }
 
-Status AnthropicProvider::parseChatResponse(const HttpResponse& response, ChatResult& out) {
+Status AnthropicProvider::parseStructuredResponse(const HttpResponse& response,
+                                                  std::string& jsonOut, ChatResult& meta) {
   JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, response.body);
-  if (err) return Status::fail(Error::JsonParseError);
+  if (deserializeJson(doc, response.body)) return Status::fail(Error::JsonParseError);
 
   JsonArrayConst content = doc["content"];
   if (content.isNull()) return Status::fail(Error::ProviderError);
+  bool found = false;
   for (JsonObjectConst block : content) {
     const char* type = block["type"];
-    if (type && std::string(type) == "text") {
-      const char* text = block["text"];
-      if (text) out.text += text;
+    if (type && std::string(type) == "tool_use") {
+      JsonObjectConst input = block["input"];
+      if (!input.isNull()) {
+        serializeJson(input, jsonOut);
+        found = true;
+        break;
+      }
     }
   }
+  if (!found) return Status::fail(Error::ProviderError);
   const char* stop = doc["stop_reason"];
-  if (stop) out.finishReason = stop;
-  out.inputTokens = doc["usage"]["input_tokens"] | 0;
-  out.outputTokens = doc["usage"]["output_tokens"] | 0;
-  return Status::ok();
-}
-
-Status AnthropicProvider::parseStreamEvent(const std::string& payload, StreamDelta& out) {
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, payload);
-  if (err) return Status::fail(Error::JsonParseError);
-
-  const char* type = doc["type"];
-  if (!type) return Status::ok();  // keep-alive / unknown; nothing to emit
-  const std::string t = type;
-
-  if (t == "content_block_delta") {
-    const char* text = doc["delta"]["text"];
-    if (text) out.textDelta = text;
-  } else if (t == "message_start") {
-    out.inputTokens = doc["message"]["usage"]["input_tokens"] | 0;
-  } else if (t == "message_delta") {
-    const char* stop = doc["delta"]["stop_reason"];
-    if (stop) out.finishReason = stop;
-    out.outputTokens = doc["usage"]["output_tokens"] | 0;
-  } else if (t == "message_stop") {
-    out.done = true;
-  }
+  if (stop) meta.finishReason = stop;
+  meta.inputTokens = doc["usage"]["input_tokens"] | 0;
+  meta.outputTokens = doc["usage"]["output_tokens"] | 0;
   return Status::ok();
 }
 

@@ -23,12 +23,10 @@ class AnthropicProvider : public Provider {
 
   const char* name() const override { return "anthropic"; }
   bool secure() const override { return true; }
-  StreamFormat streamFormat() const override { return StreamFormat::SSE; }
-
-  Status buildChatRequest(const MessageList& messages, const ChatOptions& options, bool stream,
-                          HttpRequest& out) override;
-  Status parseChatResponse(const HttpResponse& response, ChatResult& out) override;
-  Status parseStreamEvent(const std::string& payload, StreamDelta& out) override;
+  Status buildStructuredRequest(const MessageList& messages, const ChatOptions& options,
+                                const ResponseSchema& schema, HttpRequest& out) override;
+  Status parseStructuredResponse(const HttpResponse& response, std::string& jsonOut,
+                                 ChatResult& meta) override;
 
   bool supportsTools() const override { return true; }
   Status buildToolRequest(const MessageList& messages, const ChatOptions& options,

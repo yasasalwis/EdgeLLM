@@ -23,16 +23,13 @@ OpenAIChatProvider::OpenAIChatProvider(std::string apiKey, std::string defaultMo
       endpoint_(std::move(endpoint)),
       name_(providerName) {}
 
-Status OpenAIChatProvider::buildChatRequest(const MessageList& messages, const ChatOptions& options,
-                                            bool stream, HttpRequest& out) {
+Status OpenAIChatProvider::buildStructuredRequest(const MessageList& messages,
+                                                  const ChatOptions& options,
+                                                  const ResponseSchema& schema, HttpRequest& out) {
   JsonDocument doc;
   doc["model"] = options.model.empty() ? defaultModel_ : options.model;
   doc["max_tokens"] = options.maxTokens;
   if (options.hasTemperature()) doc["temperature"] = options.temperature;
-  if (stream) {
-    doc["stream"] = true;
-    doc["stream_options"]["include_usage"] = true;  // get usage in the final chunk
-  }
 
   JsonArray arr = doc["messages"].to<JsonArray>();
   if (!options.system.empty()) {
@@ -46,6 +43,15 @@ Status OpenAIChatProvider::buildChatRequest(const MessageList& messages, const C
     o["content"] = m.content;
   }
 
+  // Native structured output: strict json_schema response format.
+  JsonObject rf = doc["response_format"].to<JsonObject>();
+  rf["type"] = "json_schema";
+  JsonObject js = rf["json_schema"].to<JsonObject>();
+  js["name"] = schema.name();
+  js["strict"] = true;
+  JsonObject s = js["schema"].to<JsonObject>();
+  schema.writeSchema(s);
+
   out.method = "POST";
   out.host = endpoint_.host;
   out.port = endpoint_.port;
@@ -57,45 +63,20 @@ Status OpenAIChatProvider::buildChatRequest(const MessageList& messages, const C
   return Status::ok();
 }
 
-Status OpenAIChatProvider::parseChatResponse(const HttpResponse& response, ChatResult& out) {
+Status OpenAIChatProvider::parseStructuredResponse(const HttpResponse& response,
+                                                   std::string& jsonOut, ChatResult& meta) {
   JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, response.body);
-  if (err) return Status::fail(Error::JsonParseError);
+  if (deserializeJson(doc, response.body)) return Status::fail(Error::JsonParseError);
 
   JsonObjectConst choice0 = doc["choices"][0];
   if (choice0.isNull()) return Status::fail(Error::ProviderError);
   const char* content = choice0["message"]["content"];
-  out.text = content ? content : "";
+  if (!content) return Status::fail(Error::ProviderError);
+  jsonOut = content;
   const char* finish = choice0["finish_reason"];
-  if (finish) out.finishReason = finish;
-
-  out.inputTokens = doc["usage"]["prompt_tokens"] | 0;
-  out.outputTokens = doc["usage"]["completion_tokens"] | 0;
-  return Status::ok();
-}
-
-Status OpenAIChatProvider::parseStreamEvent(const std::string& payload, StreamDelta& out) {
-  // OpenAI marks end-of-stream with a literal [DONE] sentinel.
-  if (payload == "[DONE]") {
-    out.done = true;
-    return Status::ok();
-  }
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, payload);
-  if (err) return Status::fail(Error::JsonParseError);
-
-  JsonObjectConst choice0 = doc["choices"][0];
-  if (!choice0.isNull()) {
-    const char* delta = choice0["delta"]["content"];
-    if (delta) out.textDelta = delta;
-    const char* finish = choice0["finish_reason"];
-    if (finish) out.finishReason = finish;
-  }
-  // Final usage chunk (stream_options.include_usage) carries empty choices.
-  if (!doc["usage"].isNull()) {
-    out.inputTokens = doc["usage"]["prompt_tokens"] | 0;
-    out.outputTokens = doc["usage"]["completion_tokens"] | 0;
-  }
+  if (finish) meta.finishReason = finish;
+  meta.inputTokens = doc["usage"]["prompt_tokens"] | 0;
+  meta.outputTokens = doc["usage"]["completion_tokens"] | 0;
   return Status::ok();
 }
 

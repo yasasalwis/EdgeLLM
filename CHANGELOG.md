@@ -3,6 +3,41 @@
 All notable changes to EdgeLLM are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow SemVer.
 
+## [0.6.0] — Structured output only (BREAKING)
+
+The LLM client now returns **structured output exclusively**: you supply system +
+user messages and a `ResponseSchema`, and the model returns a JSON object that is
+validated against it. Free-text chat and text streaming are removed.
+
+### Added
+- **`ResponseSchema`** — fluent schema builder (reuses the tool field model).
+- **`StructuredResult`** — typed accessor over the validated JSON (`getString`,
+  `getInt`, `getNumber`, `getBool`, `json()`).
+- **`LLMClient::generate(schema, system, user)`** (and message-list / Conversation
+  overloads) — schema-constrained generation with local validation and an
+  automatic retry on validation failure (`setStructuredRetries`).
+- **Native structured-output enforcement per provider:** OpenAI `response_format`
+  json_schema, Anthropic forced single-tool, Gemini `responseSchema`, Ollama
+  `format` — then validated locally against the same schema.
+- **`writeObjectSchema` / `validateObject`** shared schema util (now backs both
+  tool input schemas and response schemas).
+- New examples: `04_DataExtraction` (replaces the streaming example), and
+  structured versions of `03`, `05`, `06`.
+
+### Changed (breaking)
+- Removed `LLMClient::chat()` and `chatStream()`; use `generate()`.
+- `LLMClient::run(...)` now takes a `ResponseSchema` first and returns a
+  `Result<StructuredResult>`; the agent loop runs tools, then produces a final
+  schema-validated answer.
+- `Provider` interface: `buildChatRequest`/`parseChatResponse`/`parseStreamEvent`
+  replaced by `buildStructuredRequest`/`parseStructuredResponse`. Tool methods
+  unchanged. `StreamDelta` and `StreamFormat` removed.
+- `ChatResult` is now response metadata only (no `text`).
+
+### Notes
+- `HttpClient::sendStream` and `SseParser` remain as general transport utilities
+  (still tested) but are no longer used by the LLM client.
+
 ## [0.5.1] — Security review fixes & edge-case hardening
 
 ### Security

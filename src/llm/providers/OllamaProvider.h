@@ -1,8 +1,8 @@
 // EdgeLLM — Ollama provider (local LLM runtime).
 // Arduino-independent (uses ArduinoJson). Targets POST /api/chat on a local
 // Ollama server. Defaults to plain HTTP on the LAN (no auth, no TLS) — set
-// secure=true only if you front Ollama with TLS. Streaming is newline-delimited
-// JSON (NDJSON), not SSE, which the LLMClient handles via streamFormat().
+// secure=true only if you front Ollama with TLS. Structured output uses Ollama's
+// `format` parameter (a JSON schema).
 #ifndef EDGELLM_LLM_OLLAMAPROVIDER_H
 #define EDGELLM_LLM_OLLAMAPROVIDER_H
 
@@ -21,12 +21,11 @@ class OllamaProvider : public Provider {
 
   const char* name() const override { return "ollama"; }
   bool secure() const override { return secure_; }
-  StreamFormat streamFormat() const override { return StreamFormat::NDJSON; }
 
-  Status buildChatRequest(const MessageList& messages, const ChatOptions& options, bool stream,
-                          HttpRequest& out) override;
-  Status parseChatResponse(const HttpResponse& response, ChatResult& out) override;
-  Status parseStreamEvent(const std::string& payload, StreamDelta& out) override;
+  Status buildStructuredRequest(const MessageList& messages, const ChatOptions& options,
+                                const ResponseSchema& schema, HttpRequest& out) override;
+  Status parseStructuredResponse(const HttpResponse& response, std::string& jsonOut,
+                                 ChatResult& meta) override;
 
   bool supportsTools() const override { return true; }
   Status buildToolRequest(const MessageList& messages, const ChatOptions& options,

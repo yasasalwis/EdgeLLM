@@ -6,21 +6,22 @@ EdgeLLM is a high-performance, security-first Arduino library with **two
 independent features**:
 
 1. **LLM client** — call Claude, ChatGPT, Gemini, Ollama (and any
-   OpenAI-compatible endpoint) directly from a microcontroller over WiFi+TLS,
-   with streaming responses and optional on-device tool calling.
+   OpenAI-compatible endpoint) directly from a microcontroller over WiFi+TLS, and
+   get back **structured, schema-validated JSON** (with optional on-device tool
+   calling). Structured output is the only response mode.
 2. **MCP server** — expose your device's sensors, actuators and data to
    networked LLM hosts via the **Model Context Protocol**, so an LLM can
    discover your functions and **read or write** device data on request.
 
 Use either feature on its own — neither pulls in the other.
 
-> **Status: feature-complete (v0.5.0), all 5 phases built.** Both features are
-> done: the **LLM client** (chat + streaming + agent loop with tool calling
-> across **all five** providers) and the **MCP server** (tools, resources,
-> prompts, built-in KV store, deny-by-default writes, bearer auth). 136 native
-> tests pass. Remaining work is **hardware validation** and a few cross-board
-> items — see [COMPLETION.md](COMPLETION.md) for the honest audit. See
-> [Roadmap](#roadmap).
+> **Status: feature-complete (v0.6.0).** Both features are done: the **LLM
+> client** returns schema-validated **structured output** with an on-device tool
+> calling agent loop across **all five** providers, and the **MCP server**
+> (tools, resources, prompts, built-in KV store, deny-by-default writes, bearer
+> auth). 139 native tests pass. Remaining work is **hardware validation** and a
+> few cross-board items — see [COMPLETION.md](COMPLETION.md) for the honest
+> audit. See [Roadmap](#roadmap).
 
 ---
 
@@ -139,7 +140,8 @@ EdgeLLM.h ─ umbrella
  │               ArduinoConnection (TLS/plain), Serial log sink, millis clock
  ├─ tools/       ToolRegistry (fluent), Tool + JSON schema, ToolCallArgs, UrlGuard (SSRF)
  ├─ llm/         Provider interface + Anthropic/OpenAI/Gemini/Ollama/OpenAI-compatible,
- │               LLMClient (blocking + streaming + agent loop), Conversation, Message
+ │               LLMClient (structured generate + agent loop), ResponseSchema,
+ │               StructuredResult, Conversation, Message
  ├─ mcp/         McpServer (JSON-RPC core), McpHttpServer (transport), EdgeStore (KV),
  │               ResourceRegistry, PromptRegistry
  └─ provisioning/ ProvisioningService (pure), SerialProvisioner (device)
@@ -149,7 +151,9 @@ Portable logic is Arduino-independent (depends only on the STL, which every
 target core ships) so it can be unit-tested on the host. On-device glue is
 isolated behind interfaces and guarded by platform macros.
 
-## Talk to an LLM (Feature A)
+## Structured output (Feature A — the only response mode)
+
+You always get back a JSON object validated against a schema you define:
 
 ```cpp
 #include <EdgeLLM.h>
@@ -157,26 +161,32 @@ isolated behind interfaces and guarded by platform macros.
 edge::AnthropicProvider provider(ANTHROPIC_API_KEY);   // or OpenAI / Gemini / Ollama
 edge::ArduinoSecureConnection conn;                    // plain conn for local Ollama
 
-void chat() {
+void ask() {
   conn.trust().useDefaultBundle();                     // verified TLS
   edge::LLMClient client(provider, conn);
   client.setClock(edge::edgeArduinoMillis);
 
-  // Blocking:
-  auto r = client.chat("What is an Arduino?");
-  if (r.isOk()) Serial.println(r.value().text.c_str());
+  edge::ResponseSchema schema("city_facts");
+  schema.field("name", edge::ParamType::String, "the city")
+        .field("population", edge::ParamType::Integer, "approx population")
+        .field("coastal", edge::ParamType::Boolean, "is it on the coast?");
 
-  // Streaming (low RAM — nothing buffers the full reply):
-  client.chatStream("Tell me a haiku.",
-                    [](const std::string& delta) { Serial.print(delta.c_str()); });
+  auto r = client.generate(schema, "Return concise facts.", "Tell me about Kyoto.");
+  if (r.isOk()) {
+    Serial.println(r.value().getString("name").c_str());
+    Serial.println(r.value().getInt("population"));
+    Serial.println(r.value().getBool("coastal"));
+    // r.value().json() is the raw validated JSON
+  }
 }
 ```
 
-Swap the provider line to change backend; everything else stays the same. Use a
-`Conversation` object for managed multi-turn history, or omit it for stateless
-single-shot calls.
+The library uses each provider's **native** structured-output feature (OpenAI
+`response_format`, Anthropic forced tool, Gemini `responseSchema`, Ollama
+`format`) and then **validates the result locally**, retrying once on a mismatch.
+Swap the provider line to change backend; everything else stays the same.
 
-## Let the model call your device (Feature A, agent loop)
+## Let the model call your device, then answer in structure (agent loop)
 
 ```cpp
 edge::ToolRegistry tools;
@@ -188,13 +198,17 @@ tools.addTool("set_led", "Turn the built-in LED on or off")
        return edge::ToolResult::ok("done");
      });
 
+edge::ResponseSchema schema("result");
+schema.field("action_taken", edge::ParamType::String, "what you did")
+      .field("led_on", edge::ParamType::Boolean, "is the LED on now?");
+
 edge::LLMClient client(provider, conn);
-auto r = client.run("Turn the LED on.", tools);  // model calls set_led, then answers
+auto r = client.run(schema, "Turn the LED on.", tools);  // runs tools, then returns structured JSON
 ```
 
-The agent loop runs the tools the model asks for, feeds results back, and loops
-to a final answer (bounded by `agentOptions().maxIterations`). Tool calling works
-across **all five providers** (Anthropic, OpenAI, Gemini, Ollama, and
+The agent loop runs the tools the model asks for, feeds results back (bounded by
+`agentOptions().maxIterations`), then produces a final schema-validated answer.
+Works across **all five providers** (Anthropic, OpenAI, Gemini, Ollama, and
 OpenAI-compatible).
 
 ## Expose your device to LLM hosts (Feature B, MCP server)
@@ -225,14 +239,17 @@ host. **Writes are deny-by-default**: a mutating tool stays hidden until you cal
 
 - **Phase 1 — Foundation & Transport** ✅
 - **Phase 2 — LLM client** ✅ — Anthropic, OpenAI, Gemini, Ollama,
-  OpenAI-compatible; blocking + streaming; conversation history.
+  OpenAI-compatible; conversation history.
 - **Phase 3 — Tool calling** ✅ — shared `ToolRegistry`, on-device agent loop,
   SSRF guard.
 - **Phase 4 — MCP server** ✅ — JSON-RPC 2.0 / Streamable HTTP,
   tools/resources/prompts, built-in `EdgeStore` KV, deny-by-default writes,
   bearer auth.
-- **Phase 5 — Parity, provisioning & hardening** ✅ *(this release)* — tool
-  calling for **all five** providers, Serial provisioning, constant-time auth.
+- **Phase 5 — Parity, provisioning & hardening** ✅ — tool calling for **all
+  five** providers, Serial provisioning, constant-time auth.
+- **v0.6.0 — Structured output only** ✅ *(this release)* — `generate()` returns
+  schema-validated JSON via each provider's native structured-output feature;
+  free-text chat and streaming removed.
 - **Remaining (post-1.0 candidates):** on-hardware validation, cross-board TLS
   pinning + persistent backends (Uno R4 / NINA / Portenta), captive-portal
   provisioning, MCP server-push SSE. See [COMPLETION.md](COMPLETION.md).

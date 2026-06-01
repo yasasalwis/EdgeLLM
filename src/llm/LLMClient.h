@@ -1,15 +1,15 @@
-// EdgeLLM — high-level LLM client (Feature A).
+// EdgeLLM — high-level LLM client (Feature A), structured output only.
 // Arduino-independent: orchestrates a Provider over an injected IConnection via
-// HttpClient. Supports blocking and streaming chat, stateless or with a managed
-// Conversation. This feature is fully usable WITHOUT the MCP server.
+// HttpClient. The model is always constrained to return a JSON object matching a
+// caller-supplied ResponseSchema, which the client validates (with a retry).
+// There is no free-text chat or text streaming — structured output is the only
+// response mode. This feature is fully usable WITHOUT the MCP server.
 //
 // The caller supplies the connection (a secure or plain one matching the
 // provider) so the client stays testable with a fake socket and so TLS trust is
 // configured where the sketch can see it.
 #ifndef EDGELLM_LLM_LLMCLIENT_H
 #define EDGELLM_LLM_LLMCLIENT_H
-
-#include <functional>
 
 #include "../core/Logger.h"
 #include "../tools/ToolRegistry.h"
@@ -19,10 +19,12 @@
 #include "Conversation.h"
 #include "Message.h"
 #include "Provider.h"
+#include "ResponseSchema.h"
+#include "StructuredResult.h"
 
 namespace edge {
 
-// Controls the on-device agent loop (Feature A tool calling).
+// Controls the on-device agent loop (tool calling).
 struct AgentOptions {
   // Hard cap on model<->tool round-trips, so a misbehaving model can't loop
   // forever on a microcontroller.
@@ -31,8 +33,6 @@ struct AgentOptions {
 
 class LLMClient {
  public:
-  using DeltaFn = std::function<void(const std::string& delta)>;
-
   LLMClient(Provider& provider, IConnection& conn, Logger* logger = nullptr);
 
   // Transport tuning (forwarded to HttpClient per request).
@@ -40,39 +40,34 @@ class LLMClient {
   void setTimeout(uint32_t ms) { timeoutMs_ = ms; }
   void setMaxResponseBody(uint32_t bytes) { maxResponseBody_ = bytes; }
 
+  // Extra attempts if the model returns JSON that fails schema validation.
+  void setStructuredRetries(uint8_t retries) { structuredRetries_ = retries; }
+
   // Default options applied to every call; mutate to set model/system/etc.
   ChatOptions& options() { return options_; }
   const ChatOptions& options() const { return options_; }
 
-  // --- Blocking chat ---
-  Result<ChatResult> chat(const std::string& userText);
-  Result<ChatResult> chat(const MessageList& messages);
-  // Appends the assistant reply to `convo` on success.
-  Result<ChatResult> chat(Conversation& convo);
+  // --- Structured generation (the only response mode) ---
+  // The model returns a JSON object validated against `schema`.
+  Result<StructuredResult> generate(const ResponseSchema& schema, const std::string& system,
+                                    const std::string& user);
+  Result<StructuredResult> generate(const ResponseSchema& schema, const MessageList& messages);
+  // Appends the assistant's JSON output to `convo` on success.
+  Result<StructuredResult> generate(const ResponseSchema& schema, Conversation& convo);
 
-  // --- Streaming chat (onDelta is called for each text fragment) ---
-  Status chatStream(const std::string& userText, const DeltaFn& onDelta,
-                    ChatResult* finalOut = nullptr);
-  Status chatStream(const MessageList& messages, const DeltaFn& onDelta,
-                    ChatResult* finalOut = nullptr);
-  // Appends the full assistant reply to `convo` on success.
-  Status chatStream(Conversation& convo, const DeltaFn& onDelta, ChatResult* finalOut = nullptr);
-
-  // --- Agent loop (tool calling) ---
-  // Runs the model with `tools` available, executing any tools it requests and
-  // feeding results back until it produces a final answer (or maxIterations is
-  // reached). Requires provider.supportsTools(); otherwise Error::NotImplemented.
+  // --- Agent loop (tool calling, structured final answer) ---
+  // Runs the model with `tools` available, executing any tools it requests, then
+  // produces a final answer validated against `schema`. Requires
+  // provider.supportsTools(); otherwise Error::NotImplemented.
   AgentOptions& agentOptions() { return agentOptions_; }
-  Result<ChatResult> run(const std::string& prompt, const ToolRegistry& tools);
-  Result<ChatResult> run(const MessageList& messages, const ToolRegistry& tools);
-  // Appends the final assistant answer to `convo` on success.
-  Result<ChatResult> run(Conversation& convo, const ToolRegistry& tools);
+  Result<StructuredResult> run(const ResponseSchema& schema, const std::string& prompt,
+                               const ToolRegistry& tools);
+  Result<StructuredResult> run(const ResponseSchema& schema, const MessageList& messages,
+                               const ToolRegistry& tools);
 
  private:
-  Result<ChatResult> doChat(const MessageList& messages, const ChatOptions& opts);
-  Status doChatStream(const MessageList& messages, const ChatOptions& opts, const DeltaFn& onDelta,
-                      ChatResult& out);
-  Result<ChatResult> doRun(MessageList messages, const ChatOptions& opts, const ToolRegistry& tools);
+  Result<StructuredResult> doGenerate(const ResponseSchema& schema, const MessageList& messages,
+                                      const ChatOptions& opts);
   void configure(HttpClient& http) const;
   static Error mapStatus(int httpStatus);
 
@@ -84,6 +79,7 @@ class LLMClient {
   HttpClient::ClockFn clock_ = nullptr;
   uint32_t timeoutMs_ = 20000;
   uint32_t maxResponseBody_ = 32768;
+  uint8_t structuredRetries_ = 1;
 };
 
 }  // namespace edge

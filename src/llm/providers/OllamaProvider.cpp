@@ -16,11 +16,12 @@ const char* ollamaRole(Role r) {
 }
 }  // namespace
 
-Status OllamaProvider::buildChatRequest(const MessageList& messages, const ChatOptions& options,
-                                        bool stream, HttpRequest& out) {
+Status OllamaProvider::buildStructuredRequest(const MessageList& messages,
+                                              const ChatOptions& options,
+                                              const ResponseSchema& schema, HttpRequest& out) {
   JsonDocument doc;
   doc["model"] = options.model.empty() ? defaultModel_ : options.model;
-  doc["stream"] = stream;
+  doc["stream"] = false;
 
   JsonArray arr = doc["messages"].to<JsonArray>();
   if (!options.system.empty()) {
@@ -33,6 +34,10 @@ Status OllamaProvider::buildChatRequest(const MessageList& messages, const ChatO
     o["role"] = ollamaRole(m.role);
     o["content"] = m.content;
   }
+
+  // Native structured output: pass the JSON schema as the `format`.
+  JsonObject fmt = doc["format"].to<JsonObject>();
+  schema.writeSchema(fmt);
 
   JsonObject opts = doc["options"].to<JsonObject>();
   opts["num_predict"] = options.maxTokens;
@@ -48,35 +53,18 @@ Status OllamaProvider::buildChatRequest(const MessageList& messages, const ChatO
   return Status::ok();
 }
 
-Status OllamaProvider::parseChatResponse(const HttpResponse& response, ChatResult& out) {
+Status OllamaProvider::parseStructuredResponse(const HttpResponse& response, std::string& jsonOut,
+                                               ChatResult& meta) {
   JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, response.body);
-  if (err) return Status::fail(Error::JsonParseError);
+  if (deserializeJson(doc, response.body)) return Status::fail(Error::JsonParseError);
 
   const char* content = doc["message"]["content"];
   if (!content) return Status::fail(Error::ProviderError);
-  out.text = content;
+  jsonOut = content;  // the model's JSON object, per `format`
   const char* reason = doc["done_reason"];
-  if (reason) out.finishReason = reason;
-  out.inputTokens = doc["prompt_eval_count"] | 0;
-  out.outputTokens = doc["eval_count"] | 0;
-  return Status::ok();
-}
-
-Status OllamaProvider::parseStreamEvent(const std::string& payload, StreamDelta& out) {
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, payload);
-  if (err) return Status::fail(Error::JsonParseError);
-
-  const char* delta = doc["message"]["content"];
-  if (delta) out.textDelta = delta;
-  if (doc["done"].as<bool>()) {
-    out.done = true;
-    const char* reason = doc["done_reason"];
-    if (reason) out.finishReason = reason;
-    out.inputTokens = doc["prompt_eval_count"] | 0;
-    out.outputTokens = doc["eval_count"] | 0;
-  }
+  if (reason) meta.finishReason = reason;
+  meta.inputTokens = doc["prompt_eval_count"] | 0;
+  meta.outputTokens = doc["eval_count"] | 0;
   return Status::ok();
 }
 

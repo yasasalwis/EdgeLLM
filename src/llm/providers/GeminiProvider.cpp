@@ -4,10 +4,10 @@
 
 namespace edge {
 
-Status GeminiProvider::buildChatRequest(const MessageList& messages, const ChatOptions& options,
-                                        bool stream, HttpRequest& out) {
+Status GeminiProvider::buildStructuredRequest(const MessageList& messages,
+                                              const ChatOptions& options,
+                                              const ResponseSchema& schema, HttpRequest& out) {
   const std::string model = options.model.empty() ? defaultModel_ : options.model;
-
   JsonDocument doc;
 
   std::string system = options.system;
@@ -17,9 +17,7 @@ Status GeminiProvider::buildChatRequest(const MessageList& messages, const ChatO
       system += m.content;
     }
   }
-  if (!system.empty()) {
-    doc["systemInstruction"]["parts"][0]["text"] = system;
-  }
+  if (!system.empty()) doc["systemInstruction"]["parts"][0]["text"] = system;
 
   JsonArray contents = doc["contents"].to<JsonArray>();
   for (const auto& m : messages) {
@@ -32,12 +30,16 @@ Status GeminiProvider::buildChatRequest(const MessageList& messages, const ChatO
   JsonObject gen = doc["generationConfig"].to<JsonObject>();
   gen["maxOutputTokens"] = options.maxTokens;
   if (options.hasTemperature()) gen["temperature"] = options.temperature;
+  // Native structured output. Gemini's responseSchema is an OpenAPI subset that
+  // rejects additionalProperties, so omit it.
+  gen["responseMimeType"] = "application/json";
+  JsonObject rs = gen["responseSchema"].to<JsonObject>();
+  schema.writeSchema(rs, /*additionalPropertiesFalse=*/false);
 
   out.method = "POST";
   out.host = "generativelanguage.googleapis.com";
   out.port = 443;
-  const char* verb = stream ? ":streamGenerateContent" : ":generateContent";
-  out.path = "/v1beta/models/" + model + verb + (stream ? "?alt=sse&key=" : "?key=") + apiKey_;
+  out.path = "/v1beta/models/" + model + ":generateContent?key=" + apiKey_;
   out.setHeader("Content-Type", "application/json");
   out.body.clear();
   serializeJson(doc, out.body);
@@ -56,39 +58,20 @@ void appendParts(JsonObjectConst candidate, std::string& dst) {
 }
 }  // namespace
 
-Status GeminiProvider::parseChatResponse(const HttpResponse& response, ChatResult& out) {
+Status GeminiProvider::parseStructuredResponse(const HttpResponse& response, std::string& jsonOut,
+                                               ChatResult& meta) {
   JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, response.body);
-  if (err) return Status::fail(Error::JsonParseError);
+  if (deserializeJson(doc, response.body)) return Status::fail(Error::JsonParseError);
 
   JsonObjectConst cand0 = doc["candidates"][0];
   if (cand0.isNull()) return Status::fail(Error::ProviderError);
-  appendParts(cand0, out.text);
+  // With responseMimeType application/json, the text parts ARE the JSON output.
+  appendParts(cand0, jsonOut);
+  if (jsonOut.empty()) return Status::fail(Error::ProviderError);
   const char* finish = cand0["finishReason"];
-  if (finish) out.finishReason = finish;
-  out.inputTokens = doc["usageMetadata"]["promptTokenCount"] | 0;
-  out.outputTokens = doc["usageMetadata"]["candidatesTokenCount"] | 0;
-  return Status::ok();
-}
-
-Status GeminiProvider::parseStreamEvent(const std::string& payload, StreamDelta& out) {
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, payload);
-  if (err) return Status::fail(Error::JsonParseError);
-
-  JsonObjectConst cand0 = doc["candidates"][0];
-  if (!cand0.isNull()) {
-    appendParts(cand0, out.textDelta);
-    const char* finish = cand0["finishReason"];
-    if (finish) {
-      out.finishReason = finish;
-      out.done = true;  // Gemini sends finishReason on the terminal SSE event
-    }
-  }
-  if (!doc["usageMetadata"].isNull()) {
-    out.inputTokens = doc["usageMetadata"]["promptTokenCount"] | 0;
-    out.outputTokens = doc["usageMetadata"]["candidatesTokenCount"] | 0;
-  }
+  if (finish) meta.finishReason = finish;
+  meta.inputTokens = doc["usageMetadata"]["promptTokenCount"] | 0;
+  meta.outputTokens = doc["usageMetadata"]["candidatesTokenCount"] | 0;
   return Status::ok();
 }
 

@@ -72,17 +72,26 @@ void setup() {
   client.setClock(edge::edgeArduinoMillis);
   client.options().system =
       "You control an ESP32. Use the available tools to fulfill requests, then "
-      "summarize what you did in one sentence.";
+      "report the outcome as structured JSON.";
   client.options().maxTokens = 300;
 
+  // The agent runs tools, then returns its final answer in this shape.
+  edge::ResponseSchema schema("agent_result");
+  schema.field("action_taken", edge::ParamType::String, "what you did")
+      .field("uptime_seconds", edge::ParamType::Integer, "device uptime in seconds")
+      .field("led_on", edge::ParamType::Boolean, "whether the LED is now on");
+
   logger.info("asking the agent to turn on the LED and report uptime...");
-  edge::Result<edge::ChatResult> r =
-      client.run("Turn the LED on, then tell me how long the device has been running.", tools);
+  edge::Result<edge::StructuredResult> r = client.run(
+      schema, "Turn the LED on, then tell me how long the device has been running.", tools);
   if (!r.isOk()) {
     logger.error(std::string("agent failed: ") + r.message());
     return;
   }
-  logger.info(std::string("agent: ") + r.value().text);
+  const edge::StructuredResult& out = r.value();
+  logger.info(std::string("action:  ") + out.getString("action_taken"));
+  logger.info(std::string("uptime:  ") + String((long)out.getInt("uptime_seconds")).c_str());
+  logger.info(std::string("led_on:  ") + (out.getBool("led_on") ? "yes" : "no"));
 }
 
 void loop() { delay(1000); }

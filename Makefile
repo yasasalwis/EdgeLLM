@@ -24,6 +24,7 @@ PURE_SRC := \
   src/hal/MemorySecretStore.cpp \
   src/tools/ToolCallArgs.cpp \
   src/tools/ToolRegistry.cpp \
+  src/tools/SchemaUtil.cpp \
   src/tools/UrlGuard.cpp \
   src/mcp/EdgeStore.cpp \
   src/mcp/ResourceRegistry.cpp \
@@ -46,6 +47,7 @@ TEST_SRC := \
   test/suites/test_httpclient.cpp \
   test/suites/test_secretstore.cpp \
   test/suites/test_conversation.cpp \
+  test/suites/test_structured.cpp \
   test/suites/test_providers.cpp \
   test/suites/test_llmclient.cpp \
   test/suites/test_tools.cpp \

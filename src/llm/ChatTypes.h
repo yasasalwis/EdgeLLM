@@ -21,19 +21,11 @@ struct ChatOptions {
   bool hasTemperature() const { return temperature >= 0.0f; }
 };
 
+// Response metadata accompanying a structured generation (the JSON payload is
+// returned separately as a StructuredResult).
 struct ChatResult {
-  std::string text;          // assistant reply text
   std::string finishReason;  // provider-specific, e.g. "stop", "end_turn", "length"
   uint32_t inputTokens = 0;  // usage if the provider reports it
-  uint32_t outputTokens = 0;
-};
-
-// One unit of a streamed response, produced by Provider::parseStreamEvent.
-struct StreamDelta {
-  std::string textDelta;     // incremental text to append (may be empty)
-  bool done = false;         // true on the final event of the stream
-  std::string finishReason;  // set on completion when available
-  uint32_t inputTokens = 0;  // set on completion when available
   uint32_t outputTokens = 0;
 };
 

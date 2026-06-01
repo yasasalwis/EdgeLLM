@@ -2,32 +2,14 @@
 
 #include <ArduinoJson.h>
 
+#include "SchemaUtil.h"
+
 namespace edge {
 
 // ---------------- Schema writer ----------------
 
 void writeToolSchema(const Tool& tool, JsonObject schemaOut) {
-  schemaOut["type"] = "object";
-  JsonObject props = schemaOut["properties"].to<JsonObject>();
-  bool anyRequired = false;
-  for (const auto& p : tool.params) {
-    if (p.required) anyRequired = true;
-  }
-  for (const auto& p : tool.params) {
-    JsonObject po = props[p.name].to<JsonObject>();
-    po["type"] = paramTypeName(p.type);
-    if (!p.description.empty()) po["description"] = p.description;
-    if (!p.enumValues.empty()) {
-      JsonArray e = po["enum"].to<JsonArray>();
-      for (const auto& v : p.enumValues) e.add(v);
-    }
-  }
-  if (anyRequired) {
-    JsonArray req = schemaOut["required"].to<JsonArray>();
-    for (const auto& p : tool.params) {
-      if (p.required) req.add(p.name);
-    }
-  }
+  writeObjectSchema(tool.params, schemaOut);
 }
 
 // ---------------- Builder ----------------
@@ -100,46 +82,8 @@ const Tool* ToolRegistry::find(const std::string& name) const {
   return nullptr;
 }
 
-namespace {
-bool typeMatches(ParamType type, JsonVariantConst v) {
-  switch (type) {
-    case ParamType::String: return v.is<const char*>();
-    case ParamType::Integer: return v.is<long>();
-    case ParamType::Number: return v.is<float>();
-    case ParamType::Boolean: return v.is<bool>();
-    case ParamType::Object: return v.is<JsonObjectConst>();
-    case ParamType::Array: return v.is<JsonArrayConst>();
-  }
-  return false;
-}
-}  // namespace
-
 Status ToolRegistry::validate(const Tool& tool, const std::string& argsJson) const {
-  JsonDocument doc;
-  if (!argsJson.empty()) {
-    if (deserializeJson(doc, argsJson)) return Status::fail(Error::SchemaValidationFailed);
-  }
-  for (const auto& p : tool.params) {
-    JsonVariantConst v = doc[p.name];
-    if (v.isNull()) {
-      if (p.required) return Status::fail(Error::SchemaValidationFailed);
-      continue;
-    }
-    if (!typeMatches(p.type, v)) return Status::fail(Error::SchemaValidationFailed);
-    if (p.type == ParamType::String && !p.enumValues.empty()) {
-      const char* s = v.as<const char*>();
-      const std::string sv = s ? s : "";
-      bool member = false;
-      for (const auto& allowed : p.enumValues) {
-        if (allowed == sv) {
-          member = true;
-          break;
-        }
-      }
-      if (!member) return Status::fail(Error::SchemaValidationFailed);
-    }
-  }
-  return Status::ok();
+  return validateObject(tool.params, argsJson);
 }
 
 Result<ToolResult> ToolRegistry::dispatch(const std::string& name,

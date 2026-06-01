@@ -1,8 +1,9 @@
 // EdgeLLM — LLM provider abstraction.
-// Arduino-independent. A Provider knows how to (a) turn messages + options into
-// an HTTP request for a specific API, (b) parse a non-streaming JSON response,
-// and (c) parse one streamed payload (an SSE data field or an NDJSON line) into
-// a delta. LLMClient drives the transport; providers own only the wire format.
+// Arduino-independent. EdgeLLM's LLM client produces STRUCTURED OUTPUT only: the
+// caller supplies system/user messages plus a ResponseSchema, and the model
+// returns a JSON object validated against it. A Provider knows how to build the
+// schema-constrained request for its API and extract the JSON the model
+// produced; the client validates it.
 //
 // Adding a new backend = implementing this interface (the "pluggable" provider
 // support promised in discovery).
@@ -14,14 +15,9 @@
 #include "../transport/HttpTypes.h"
 #include "ChatTypes.h"
 #include "Message.h"
+#include "ResponseSchema.h"
 
 namespace edge {
-
-// How a provider frames its streaming responses.
-enum class StreamFormat : uint8_t {
-  SSE = 0,     // text/event-stream; one payload per SSE "data:" field
-  NDJSON = 1,  // newline-delimited JSON; one payload per line (e.g. Ollama)
-};
 
 class Provider {
  public:
@@ -33,23 +29,19 @@ class Provider {
   // True if the endpoint uses TLS (cloud APIs). Local Ollama may be false.
   virtual bool secure() const = 0;
 
-  virtual StreamFormat streamFormat() const { return StreamFormat::SSE; }
+  // Builds a request that constrains the model to return JSON matching `schema`,
+  // using the provider's native structured-output mechanism. Serializes the
+  // system/user/assistant message history into `out`.
+  virtual Status buildStructuredRequest(const MessageList& messages, const ChatOptions& options,
+                                        const ResponseSchema& schema, HttpRequest& out) = 0;
 
-  // Fills `out` (method, host, port, path, headers, body) for a chat request.
-  // When `stream` is true the request asks the API to stream.
-  virtual Status buildChatRequest(const MessageList& messages, const ChatOptions& options,
-                                  bool stream, HttpRequest& out) = 0;
+  // Extracts the model's JSON output from a successful (2xx) response into
+  // `jsonOut`, and any usage/finish metadata into `meta`. The client validates
+  // `jsonOut` against the schema afterwards.
+  virtual Status parseStructuredResponse(const HttpResponse& response, std::string& jsonOut,
+                                         ChatResult& meta) = 0;
 
-  // Parses a successful (2xx) non-streaming response body into `out`.
-  virtual Status parseChatResponse(const HttpResponse& response, ChatResult& out) = 0;
-
-  // Parses a single streamed payload into `out`. `payload` is the raw JSON of
-  // one SSE data field or one NDJSON line. Implementations set out.textDelta and
-  // out.done as appropriate; non-JSON keep-alive payloads should yield an empty
-  // delta and Status::ok().
-  virtual Status parseStreamEvent(const std::string& payload, StreamDelta& out) = 0;
-
-  // --- Tool/function calling (Phase 3) ---
+  // --- Tool/function calling (agent loop) ---
   // Providers that support tools override these. The agent loop only runs when
   // supportsTools() is true; otherwise it returns Error::NotImplemented.
 

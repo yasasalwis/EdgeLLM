@@ -42,13 +42,16 @@
 // --- Shared tools (Phase 3): registry used by the agent loop and, later, MCP ---
 #include "tools/ToolTypes.h"
 #include "tools/ToolCallArgs.h"
+#include "tools/SchemaUtil.h"
 #include "tools/Tool.h"
 #include "tools/ToolRegistry.h"
 #include "tools/UrlGuard.h"
 
-// --- Feature A: LLM client (Phase 2-3). Requires ArduinoJson. ---
+// --- Feature A: LLM client (structured output only). Requires ArduinoJson. ---
 #include "llm/Message.h"
 #include "llm/ChatTypes.h"
+#include "llm/ResponseSchema.h"
+#include "llm/StructuredResult.h"
 #include "llm/Conversation.h"
 #include "llm/Provider.h"
 #include "llm/LLMClient.h"
