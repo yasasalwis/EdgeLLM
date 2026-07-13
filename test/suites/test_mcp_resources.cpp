@@ -40,6 +40,23 @@ TEST(mcp_resource_list_and_read) {
   CHECK_STR_EQ(jstr(read["result"]["contents"][0]["mimeType"]), "text/plain");
 }
 
+TEST(mcp_blob_resource_served_as_blob) {
+  McpServer s("x", "1");
+  ResourceRegistry rr;
+  rr.addResource("cam://frame", "Camera frame")
+      .mimeType("image/jpeg")
+      .blob()
+      .onRead([](const std::string&) { return Result<std::string>::ok("AAECAwQ="); });
+  s.setResourceRegistry(&rr);
+
+  JsonDocument read = call(
+      s, R"({"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"cam://frame"}})");
+  JsonObjectConst c = read["result"]["contents"][0];
+  CHECK_STR_EQ(jstr(c["blob"]), "AAECAwQ=");
+  CHECK(c["text"].isNull());  // binary resources must not use the text field
+  CHECK_STR_EQ(jstr(c["mimeType"]), "image/jpeg");
+}
+
 TEST(mcp_resource_read_missing_is_32002) {
   McpServer s("x", "1");
   ResourceRegistry rr;

@@ -39,6 +39,19 @@ class HttpClient {
   void setMaxResponseBody(uint32_t bytes) { maxResponseBody_ = bytes; }
   void setReceiveBufferSize(uint16_t bytes) { recvBufferSize_ = bytes < 64 ? 64 : bytes; }
 
+  // Keep-alive mode: requests default to "Connection: keep-alive" and send()
+  // leaves the socket open after a response that permits reuse (framed body, no
+  // "Connection: close", socket still up) — so back-to-back requests to the
+  // same host skip the TCP+TLS handshake. When reuse is not possible send()
+  // closes the connection itself. A request written on a reused socket that the
+  // server had silently closed is retried once on a fresh connection (safe per
+  // RFC 7230 §6.3.1 because no response bytes were received).
+  void setKeepAlive(bool on) { keepAlive_ = on; }
+
+  // After a successful send() in keep-alive mode: true if the connection was
+  // left open for the next request.
+  bool connectionReusable() const { return reusable_; }
+
   // Performs the request and fills `out`. Connects first if the connection is
   // not already open. Returns Ok on a complete HTTP exchange regardless of the
   // HTTP status code (inspect out.status); returns a transport/parse error
@@ -51,6 +64,7 @@ class HttpClient {
   Status sendStream(const HttpRequest& req, HttpResponse& outHeaders, const BodyChunkFn& onChunk);
 
  private:
+  Status sendOnce(const HttpRequest& req, HttpResponse& out);
   Status writeAll(const std::string& data, uint32_t startMs);
   Status readHeaders(std::string& leftoverBody, HttpResponse& out, uint32_t startMs);
   Status readBody(const std::string& initial, HttpResponse& out, uint32_t startMs);
@@ -63,6 +77,13 @@ class HttpClient {
   uint32_t timeoutMs_ = 15000;
   uint32_t maxResponseBody_ = 16384;
   uint16_t recvBufferSize_ = 512;
+  bool keepAlive_ = false;
+  bool reusable_ = false;
+  bool sawResponseBytes_ = false;  // any response bytes received in sendOnce()
+  // Bytes read past the end of a Content-Length body on a kept-alive
+  // connection (a pipelining server); consumed first by the next response so
+  // nothing is lost or desynced. Cleared whenever a fresh connection is made.
+  std::string pending_;
 };
 
 }  // namespace edge

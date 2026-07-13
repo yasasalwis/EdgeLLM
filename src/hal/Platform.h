@@ -27,6 +27,12 @@
 #define EDGELLM_PLATFORM_MBED 1
 #define EDGELLM_HAS_ARDUINO 1
 
+#elif defined(ARDUINO_ARCH_RP2040)
+// Raspberry Pi Pico W / RP2040 (and RP2350) on the arduino-pico core, whose
+// networking stack mirrors the ESP8266 API (BearSSL WiFiClientSecure).
+#define EDGELLM_PLATFORM_RP2040 1
+#define EDGELLM_HAS_ARDUINO 1
+
 #elif defined(ARDUINO)
 // Some other Arduino core we don't specifically tier. Treat as constrained.
 #define EDGELLM_PLATFORM_GENERIC_ARDUINO 1
@@ -50,10 +56,10 @@
 #if defined(EDGELLM_HAS_ARDUINO)
 #if defined(__has_include)
 #if !__has_include(<string>)
-#error "EdgeLLM is not supported on this board: it requires the C++ STL. Use a 32-bit WiFi core — ESP32, ESP8266, Arduino Uno R4 WiFi, Nano 33 IoT / MKR (WiFiNINA), or Portenta. Classic AVR Arduino (Uno/Mega) + WiFi shield is not supported."
+#error "EdgeLLM is not supported on this board: it requires the C++ STL. Use a 32-bit WiFi core — ESP32, ESP8266, Raspberry Pi Pico W, Arduino Uno R4 WiFi, Nano 33 IoT / MKR (WiFiNINA), or Portenta. Classic AVR Arduino (Uno/Mega) + WiFi shield is not supported."
 #endif
 #elif defined(__AVR__) || defined(ARDUINO_ARCH_AVR)
-#error "EdgeLLM is not supported on AVR (classic Arduino Uno/Mega). Use a 32-bit WiFi core — ESP32, ESP8266, Uno R4 WiFi, Nano 33 IoT / MKR, or Portenta."
+#error "EdgeLLM is not supported on AVR (classic Arduino Uno/Mega). Use a 32-bit WiFi core — ESP32, ESP8266, Pico W, Uno R4 WiFi, Nano 33 IoT / MKR, or Portenta."
 #endif
 #endif
 // clang-format on

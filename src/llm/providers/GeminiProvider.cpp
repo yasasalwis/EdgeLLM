@@ -4,6 +4,21 @@
 
 namespace edge {
 
+namespace {
+// Writes a message's parts: text plus, when present, an inline_data image part.
+void writeGeminiParts(JsonObject o, const Message& m) {
+  JsonArray parts = o["parts"].to<JsonArray>();
+  if (!m.content.empty() || !m.hasImage()) {
+    parts.add<JsonObject>()["text"] = m.content;
+  }
+  if (m.hasImage()) {
+    JsonObject inline_ = parts.add<JsonObject>()["inline_data"].to<JsonObject>();
+    inline_["mime_type"] = m.imageMime.empty() ? "image/jpeg" : m.imageMime;
+    inline_["data"] = m.imageBase64;
+  }
+}
+}  // namespace
+
 Status GeminiProvider::buildStructuredRequest(const MessageList& messages,
                                               const ChatOptions& options,
                                               const ResponseSchema& schema, HttpRequest& out) {
@@ -24,12 +39,18 @@ Status GeminiProvider::buildStructuredRequest(const MessageList& messages,
     if (m.role == Role::System) continue;
     JsonObject o = contents.add<JsonObject>();
     o["role"] = (m.role == Role::Assistant) ? "model" : "user";
-    o["parts"][0]["text"] = m.content;
+    writeGeminiParts(o, m);
   }
 
   JsonObject gen = doc["generationConfig"].to<JsonObject>();
   gen["maxOutputTokens"] = options.maxTokens;
   if (options.hasTemperature()) gen["temperature"] = options.temperature;
+  if (options.hasTopP()) gen["topP"] = options.topP;
+  if (!options.stopSequences.empty()) {
+    JsonArray stops = gen["stopSequences"].to<JsonArray>();
+    for (const auto& seq : options.stopSequences)
+      stops.add(seq);
+  }
   // Native structured output. Gemini's responseSchema is an OpenAPI subset that
   // rejects additionalProperties, so omit it.
   gen["responseMimeType"] = "application/json";
@@ -134,7 +155,7 @@ Status GeminiProvider::buildToolRequest(const MessageList& messages, const ChatO
     }
     JsonObject o = contents.add<JsonObject>();
     o["role"] = (m.role == Role::Assistant) ? "model" : "user";
-    o["parts"][0]["text"] = m.content;
+    writeGeminiParts(o, m);
     ++i;
   }
 
@@ -150,6 +171,12 @@ Status GeminiProvider::buildToolRequest(const MessageList& messages, const ChatO
   JsonObject gen = doc["generationConfig"].to<JsonObject>();
   gen["maxOutputTokens"] = options.maxTokens;
   if (options.hasTemperature()) gen["temperature"] = options.temperature;
+  if (options.hasTopP()) gen["topP"] = options.topP;
+  if (!options.stopSequences.empty()) {
+    JsonArray stops = gen["stopSequences"].to<JsonArray>();
+    for (const auto& seq : options.stopSequences)
+      stops.add(seq);
+  }
 
   out.method = "POST";
   out.host = "generativelanguage.googleapis.com";

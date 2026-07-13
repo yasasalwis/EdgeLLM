@@ -14,6 +14,11 @@ ResourceBuilder& ResourceBuilder::mimeType(const std::string& mime) {
   return *this;
 }
 
+ResourceBuilder& ResourceBuilder::blob(bool value) {
+  resource().isBlob = value;
+  return *this;
+}
+
 ResourceBuilder& ResourceBuilder::onRead(
     std::function<Result<std::string>(const std::string&)> handler) {
   resource().onRead = std::move(handler);

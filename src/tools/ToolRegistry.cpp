@@ -39,6 +39,45 @@ ToolBuilder& ToolBuilder::paramEnum(const std::string& name, const std::string& 
   return *this;
 }
 
+ToolBuilder& ToolBuilder::paramObject(const std::string& name, const std::string& description,
+                                      const FieldSpec& shape, bool required) {
+  ToolParam p;
+  p.name = name;
+  p.type = ParamType::Object;
+  p.description = description;
+  p.required = required;
+  p.children = shape.fields();
+  tool().params.push_back(std::move(p));
+  return *this;
+}
+
+ToolBuilder& ToolBuilder::paramArray(const std::string& name, const std::string& description,
+                                     ParamType itemType, bool required) {
+  ToolParam p;
+  p.name = name;
+  p.type = ParamType::Array;
+  p.description = description;
+  p.required = required;
+  p.itemType = itemType;
+  p.hasItems = true;
+  tool().params.push_back(std::move(p));
+  return *this;
+}
+
+ToolBuilder& ToolBuilder::paramArray(const std::string& name, const std::string& description,
+                                     const FieldSpec& itemShape, bool required) {
+  ToolParam p;
+  p.name = name;
+  p.type = ParamType::Array;
+  p.description = description;
+  p.required = required;
+  p.itemType = ParamType::Object;
+  p.hasItems = true;
+  p.children = itemShape.fields();
+  tool().params.push_back(std::move(p));
+  return *this;
+}
+
 ToolBuilder& ToolBuilder::mutating(bool value) {
   tool().mutating = value;
   return *this;

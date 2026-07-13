@@ -56,6 +56,7 @@ enum class Error : uint8_t {
   RateLimited = 91,
   ContextOverflow = 92,
   ToolIterationLimit = 93,
+  BudgetExceeded = 94,  // a UsageMeter cap (requests/tokens) was reached
 
   // MCP (110-129)
   McpProtocolError = 110,
@@ -132,6 +133,8 @@ inline const char* errorString(Error e) {
       return "context window overflow";
     case Error::ToolIterationLimit:
       return "tool iteration limit reached";
+    case Error::BudgetExceeded:
+      return "usage budget exceeded";
     case Error::McpProtocolError:
       return "mcp protocol error";
     case Error::McpMethodNotFound:

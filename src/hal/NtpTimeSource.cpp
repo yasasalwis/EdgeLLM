@@ -4,7 +4,8 @@
 
 #include <Arduino.h>
 
-#if defined(EDGELLM_PLATFORM_ESP32) || defined(EDGELLM_PLATFORM_ESP8266)
+#if defined(EDGELLM_PLATFORM_ESP32) || defined(EDGELLM_PLATFORM_ESP8266) || \
+    defined(EDGELLM_PLATFORM_RP2040)
 #include <time.h>
 #elif defined(EDGELLM_PLATFORM_UNO_R4)
 #include <WiFiS3.h>
@@ -15,8 +16,10 @@
 namespace edge {
 
 bool NtpTimeSource::begin(uint32_t timeoutMs, const char* server1, const char* server2) {
-#if defined(EDGELLM_PLATFORM_ESP32) || defined(EDGELLM_PLATFORM_ESP8266)
-  // UTC, no DST offset; certificate checks operate in UTC.
+#if defined(EDGELLM_PLATFORM_ESP32) || defined(EDGELLM_PLATFORM_ESP8266) || \
+    defined(EDGELLM_PLATFORM_RP2040)
+  // UTC, no DST offset; certificate checks operate in UTC. arduino-pico
+  // provides the same configTime()/time() glue as the ESP cores.
   configTime(0, 0, server1, server2);
   const uint32_t start = millis();
   while (static_cast<uint32_t>(time(nullptr)) < kPlausibleEpochFloor) {
@@ -42,7 +45,8 @@ bool NtpTimeSource::begin(uint32_t timeoutMs, const char* server1, const char* s
 }
 
 uint32_t NtpTimeSource::epoch() {
-#if defined(EDGELLM_PLATFORM_ESP32) || defined(EDGELLM_PLATFORM_ESP8266)
+#if defined(EDGELLM_PLATFORM_ESP32) || defined(EDGELLM_PLATFORM_ESP8266) || \
+    defined(EDGELLM_PLATFORM_RP2040)
   return static_cast<uint32_t>(time(nullptr));
 #elif defined(EDGELLM_PLATFORM_UNO_R4) || defined(EDGELLM_PLATFORM_SAMD)
   return static_cast<uint32_t>(WiFi.getTime());

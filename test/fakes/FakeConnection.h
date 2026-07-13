@@ -28,10 +28,32 @@ class FakeConnection : public edge::IConnection {
   // last entry repeats). Used to test the multi-round-trip agent loop.
   std::vector<std::string> responses;
 
+  // Keep-alive server mode: a new request written after the current response
+  // drained serves the next script entry on the SAME connection (no reconnect),
+  // like a real HTTP/1.1 persistent connection.
+  bool keepAliveServer = false;
+
+  // Stale-socket mode: once the response is drained, reads fail (-1) but
+  // connected() stays true — models a server that closed an idle keep-alive
+  // connection without the client noticing yet.
+  bool staleAfterDrain = false;
+
+  int connectCount = 0;  // how many times connect() was called
+  int stopCount = 0;     // how many times stop() was called
+
+  // When > 0, that many leading connect() attempts fail with ConnectFailed
+  // before connects start succeeding — for testing transient-failure retries.
+  int failFirstConnects = 0;
+
   edge::Status connect(const char* host, uint16_t port) override {
     (void)host;
     (void)port;
     if (!connectResult) return connectResult;
+    if (failFirstConnects > 0) {
+      --failFirstConnects;
+      return edge::Status::fail(edge::Error::ConnectFailed);
+    }
+    ++connectCount;
     if (!responses.empty()) {
       toSend = responses[responseIdx_ < responses.size() ? responseIdx_ : responses.size() - 1];
       ++responseIdx_;
@@ -44,6 +66,14 @@ class FakeConnection : public edge::IConnection {
   bool connected() override { return connected_; }
 
   int write(const uint8_t* data, size_t len) override {
+    // Keep-alive server: a fresh request after the previous response was fully
+    // consumed makes the next scripted response available without a reconnect.
+    if (keepAliveServer && !responses.empty() && readPos_ >= toSend.size() &&
+        responseIdx_ < responses.size()) {
+      toSend = responses[responseIdx_];
+      ++responseIdx_;
+      readPos_ = 0;
+    }
     written.append(reinterpret_cast<const char*>(data), len);
     return static_cast<int>(len);
   }
@@ -56,6 +86,7 @@ class FakeConnection : public edge::IConnection {
   int read(uint8_t* buf, size_t len) override {
     if (stall) return 0;
     if (readPos_ >= toSend.size()) {
+      if (staleAfterDrain) return -1;  // reads fail but connected() stays true
       if (closeWhenDrained) {
         connected_ = false;
         return -1;
@@ -70,7 +101,10 @@ class FakeConnection : public edge::IConnection {
     return static_cast<int>(take);
   }
 
-  void stop() override { connected_ = false; }
+  void stop() override {
+    if (connected_) ++stopCount;
+    connected_ = false;
+  }
 
  private:
   bool connected_ = false;

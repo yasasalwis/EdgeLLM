@@ -11,7 +11,7 @@ void ArduinoSecureConnection::applyTrust() {
   } else if (trust_.hasCert()) {
     client_.setCACert(trust_.pem());
   }
-#elif defined(EDGELLM_PLATFORM_ESP8266)
+#elif defined(EDGELLM_PLATFORM_ESP8266) || defined(EDGELLM_PLATFORM_RP2040)
   if (trust_.insecure()) {
     client_.setInsecure();
   } else if (trust_.hasCert()) {

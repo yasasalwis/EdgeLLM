@@ -43,6 +43,7 @@
 
 // --- Shared tools (Phase 3): registry used by the agent loop and, later, MCP ---
 #include "tools/ToolTypes.h"
+#include "tools/FieldSpec.h"
 #include "tools/ToolCallArgs.h"
 #include "tools/SchemaUtil.h"
 #include "tools/Tool.h"
@@ -55,6 +56,7 @@
 #include "llm/ResponseSchema.h"
 #include "llm/StructuredResult.h"
 #include "llm/Conversation.h"
+#include "llm/UsageMeter.h"
 #include "llm/Provider.h"
 #include "llm/LLMClient.h"
 #include "llm/providers/AnthropicProvider.h"

@@ -67,7 +67,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env: [esp32dev, esp8266, uno_r4_wifi, nano_33_iot, portenta_h7]
+        env: [esp32dev, esp32s3, esp32c3, esp8266, pico_w, uno_r4_wifi, nano_33_iot, portenta_h7]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

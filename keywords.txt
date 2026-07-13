@@ -56,6 +56,10 @@ ResourceRegistry	KEYWORD1
 PromptRegistry	KEYWORD1
 Resource	KEYWORD1
 Prompt	KEYWORD1
+FieldSpec	KEYWORD1
+UsageMeter	KEYWORD1
+RetryPolicy	KEYWORD1
+ClientMetrics	KEYWORD1
 
 #######################################
 # Methods and Functions (KEYWORD2)
@@ -102,6 +106,10 @@ run	KEYWORD2
 addTool	KEYWORD2
 param	KEYWORD2
 paramEnum	KEYWORD2
+paramObject	KEYWORD2
+paramArray	KEYWORD2
+objectField	KEYWORD2
+arrayField	KEYWORD2
 onCall	KEYWORD2
 mutating	KEYWORD2
 allowWrite	KEYWORD2
@@ -118,6 +126,20 @@ setResourceRegistry	KEYWORD2
 setPromptRegistry	KEYWORD2
 setStore	KEYWORD2
 setAuthToken	KEYWORD2
+advertise	KEYWORD2
+blob	KEYWORD2
+userWithImage	KEYWORD2
+setPersistentConnection	KEYWORD2
+retryPolicy	KEYWORD2
+setDelayFn	KEYWORD2
+setUsageMeter	KEYWORD2
+metrics	KEYWORD2
+resetMetrics	KEYWORD2
+setOnChange	KEYWORD2
+setWithTtl	KEYWORD2
+allowRequest	KEYWORD2
+recordTokens	KEYWORD2
+setKeepAlive	KEYWORD2
 setPersistence	KEYWORD2
 setInstructions	KEYWORD2
 

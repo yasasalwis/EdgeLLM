@@ -39,6 +39,15 @@ struct ToolParam {
   ParamType type = ParamType::String;
   bool required = true;
   std::vector<std::string> enumValues;  // optional allowed string values
+
+  // Nested shape. For type == Object, `children` are its properties (empty
+  // means "any object"). For type == Array with hasItems set, `itemType` is the
+  // element type and, when itemType == Object, `children` describe the element's
+  // properties. hasItems == false means "any array". Depth is bounded by
+  // construction: nesting only goes as deep as the caller explicitly builds.
+  std::vector<ToolParam> children;
+  ParamType itemType = ParamType::String;
+  bool hasItems = false;
 };
 
 // A tool invocation requested by the model.

@@ -84,3 +84,80 @@ TEST(edgestore_rejects_reserved_manifest_key) {
   CHECK_EQ(s.set("__edgestore_manifest__", "x").error(), Error::InvalidArgument);
   CHECK(!s.has("__edgestore_manifest__"));
 }
+
+namespace {
+uint32_t edgestoreFakeNow = 0;
+uint32_t edgestoreFakeClock() { return edgestoreFakeNow; }
+}  // namespace
+
+TEST(edgestore_onchange_hook_fires_on_set_and_remove) {
+  EdgeStore s;
+  std::vector<std::pair<std::string, bool>> events;
+  s.setOnChange([&](const std::string& key, bool removed) { events.emplace_back(key, removed); });
+
+  s.set("led", "on");
+  s.set("led", "off");  // update fires too
+  s.remove("led");
+  s.remove("led");  // idempotent no-op: no event
+
+  CHECK_EQ(events.size(), static_cast<size_t>(3));
+  CHECK_STR_EQ(events[0].first, "led");
+  CHECK(!events[0].second);
+  CHECK(!events[1].second);
+  CHECK(events[2].second);  // removal
+}
+
+TEST(edgestore_ttl_requires_clock) {
+  EdgeStore s;
+  CHECK_EQ(s.setWithTtl("k", "v", 100).error(), Error::InvalidState);
+}
+
+TEST(edgestore_ttl_entry_expires_lazily) {
+  EdgeStore s;
+  edgestoreFakeNow = 1000;
+  s.setClock(edgestoreFakeClock);
+  std::vector<std::pair<std::string, bool>> events;
+  s.setOnChange([&](const std::string& key, bool removed) { events.emplace_back(key, removed); });
+
+  CHECK(s.setWithTtl("reading", "21.5", 500).isOk());
+  CHECK(s.has("reading"));
+  CHECK_STR_EQ(s.get("reading").value(), "21.5");
+  CHECK_EQ(s.size(), static_cast<size_t>(1));
+
+  edgestoreFakeNow = 1499;  // still alive
+  CHECK(s.has("reading"));
+
+  edgestoreFakeNow = 1500;  // deadline reached
+  CHECK(!s.has("reading"));
+  CHECK_EQ(s.keys().size(), static_cast<size_t>(0));
+  CHECK_EQ(s.size(), static_cast<size_t>(0));
+  CHECK_EQ(s.get("reading").error(), Error::NotFound);
+
+  // set + expiry-removal events
+  CHECK_EQ(events.size(), static_cast<size_t>(2));
+  CHECK(events[1].second);
+}
+
+TEST(edgestore_ttl_entries_never_persist) {
+  MemorySecretStore backend;
+  EdgeStore s;
+  edgestoreFakeNow = 0;
+  s.setClock(edgestoreFakeClock);
+  s.setPersistence(&backend);
+
+  CHECK(s.set("durable", "1").isOk());
+  CHECK(s.setWithTtl("ephemeral", "2", 1000).isOk());
+  CHECK(backend.get("durable").isOk());
+  CHECK(!backend.get("ephemeral").isOk());  // TTL entries stay RAM-only
+
+  // Overwriting a durable key with a TTL entry drops the persisted copy so a
+  // reboot can't resurrect a stale value.
+  CHECK(s.setWithTtl("durable", "3", 1000).isOk());
+  CHECK(!backend.get("durable").isOk());
+
+  // A plain set promotes a TTL entry back to durable.
+  CHECK(s.set("ephemeral", "4").isOk());
+  CHECK(backend.get("ephemeral").isOk());
+  edgestoreFakeNow = 5000;
+  CHECK(s.has("ephemeral"));  // no longer expires
+}

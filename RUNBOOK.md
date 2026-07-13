@@ -86,6 +86,31 @@ Re-flash devices afterward to pick up the new `RootCABundle.h`.
 - Intentional for Phase 1. Network examples for other boards land with their HAL
   bring-up in Phase 5; example 01 compiles on all boards.
 
+**Repeated `RateLimited` / `ProviderError` in logs**
+- The client already retries 429/5xx with backoff (`client.retryPolicy()`), so
+  persistent errors mean a real quota or outage. Check `client.metrics()` —
+  `retries`, `httpErrors` and `lastLatencyMs` tell you whether the provider is
+  degraded or the device is misconfigured.
+
+**`BudgetExceeded` errors**
+- The attached `UsageMeter` cap was reached (deliberate spend guard). Decide:
+  raise the cap, or call `meter.reset()` on your schedule (e.g. daily). Caps
+  reset on reboot — they are RAM-only counters.
+
+**Device not discoverable by MCP hosts**
+- mDNS advertisement (`http.advertise("hostname")`) runs on ESP32/ESP8266 only,
+  and only after WiFi is up. Elsewhere connect by IP, or add your core's mDNS
+  library. Some networks block multicast — the endpoint still works by IP.
+
+## Watching a deployed device
+
+- **Usage/cost**: attach a `UsageMeter` with `setMaxRequests` /
+  `setMaxTotalTokens`; expose `meter.requests()` etc. as an MCP resource or a
+  periodic log line.
+- **Health**: log `client.metrics()` counters periodically; a rising
+  `transportErrors` or `retries` trend flags a degrading network before users
+  notice.
+
 ## Incident response (sketch)
 
 1. **Detect** — abnormal logs (auth failures, repeated errors), provider billing

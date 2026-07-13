@@ -37,6 +37,7 @@ Status OllamaProvider::buildStructuredRequest(const MessageList& messages,
     JsonObject o = arr.add<JsonObject>();
     o["role"] = ollamaRole(m.role);
     o["content"] = m.content;
+    if (m.hasImage()) o["images"].to<JsonArray>().add(m.imageBase64);
   }
 
   // Native structured output: pass the JSON schema as the `format`.
@@ -46,6 +47,12 @@ Status OllamaProvider::buildStructuredRequest(const MessageList& messages,
   JsonObject opts = doc["options"].to<JsonObject>();
   opts["num_predict"] = options.maxTokens;
   if (options.hasTemperature()) opts["temperature"] = options.temperature;
+  if (options.hasTopP()) opts["top_p"] = options.topP;
+  if (!options.stopSequences.empty()) {
+    JsonArray stops = opts["stop"].to<JsonArray>();
+    for (const auto& seq : options.stopSequences)
+      stops.add(seq);
+  }
 
   out.method = "POST";
   out.host = host_;
@@ -113,6 +120,7 @@ Status OllamaProvider::buildToolRequest(const MessageList& messages, const ChatO
       JsonObject o = arr.add<JsonObject>();
       o["role"] = (m.role == Role::Assistant) ? "assistant" : "user";
       o["content"] = m.content;
+      if (m.hasImage()) o["images"].to<JsonArray>().add(m.imageBase64);
     }
   }
 
@@ -125,6 +133,16 @@ Status OllamaProvider::buildToolRequest(const MessageList& messages, const ChatO
     if (!t.description.empty()) fn["description"] = t.description;
     JsonObject params = fn["parameters"].to<JsonObject>();
     writeToolSchema(t, params);
+  }
+
+  JsonObject opts = doc["options"].to<JsonObject>();
+  opts["num_predict"] = options.maxTokens;
+  if (options.hasTemperature()) opts["temperature"] = options.temperature;
+  if (options.hasTopP()) opts["top_p"] = options.topP;
+  if (!options.stopSequences.empty()) {
+    JsonArray stops = opts["stop"].to<JsonArray>();
+    for (const auto& seq : options.stopSequences)
+      stops.add(seq);
   }
 
   out.method = "POST";

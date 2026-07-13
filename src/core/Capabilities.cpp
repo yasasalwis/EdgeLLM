@@ -47,6 +47,15 @@ Capabilities detectCapabilities() {
   c.recvBufferSize = 512;
   c.maxResponseBody = 8192;
 
+#elif defined(EDGELLM_PLATFORM_RP2040)
+  c.board = "rp2040";
+  c.heapBudget = 120000;  // Pico W: 264KB SRAM minus WiFi/TLS stacks
+  c.maxTlsConnections = 2;
+  c.supportsFullDuplex = false;       // loop()-driven in the Arduino model
+  c.supportsPersistentStore = false;  // flash KV backend not wired yet (RAM store)
+  c.recvBufferSize = 1024;
+  c.maxResponseBody = 32768;
+
 #elif defined(EDGELLM_PLATFORM_MBED)
   c.board = "mbed_portenta";
   c.heapBudget = 200000;  // Portenta H7 is comparatively roomy
