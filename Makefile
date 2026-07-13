@@ -46,10 +46,15 @@ TEST_SRC := \
   test/suites/test_sse.cpp \
   test/suites/test_chunked.cpp \
   test/suites/test_httpclient.cpp \
+  test/suites/test_keepalive.cpp \
+  test/suites/test_retry.cpp \
+  test/suites/test_images.cpp \
+  test/suites/test_usage_metrics.cpp \
   test/suites/test_secretstore.cpp \
   test/suites/test_eepromcodec.cpp \
   test/suites/test_conversation.cpp \
   test/suites/test_structured.cpp \
+  test/suites/test_schema_nested.cpp \
   test/suites/test_providers.cpp \
   test/suites/test_llmclient.cpp \
   test/suites/test_tools.cpp \

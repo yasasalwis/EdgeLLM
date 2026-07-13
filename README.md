@@ -7,21 +7,23 @@ independent features**:
 
 1. **LLM client** — call Claude, ChatGPT, Gemini, Ollama (and any
    OpenAI-compatible endpoint) directly from a microcontroller over WiFi+TLS, and
-   get back **structured, schema-validated JSON** (with optional on-device tool
-   calling). Structured output is the only response mode.
+   get back **structured, schema-validated JSON** (nested objects/arrays
+   included) — with **image/vision input** and optional on-device tool calling.
+   Structured output is the only response mode.
 2. **MCP server** — expose your device's sensors, actuators and data to
    networked LLM hosts via the **Model Context Protocol**, so an LLM can
-   discover your functions and **read or write** device data on request.
+   discover your functions (via mDNS) and **read or write** device data —
+   including binary blobs like camera frames — on request.
 
 Use either feature on its own — neither pulls in the other.
 
-> **Status: feature-complete (v0.6.0).** Both features are done: the **LLM
-> client** returns schema-validated **structured output** with an on-device tool
-> calling agent loop across **all five** providers, and the **MCP server**
-> (tools, resources, prompts, built-in KV store, deny-by-default writes, bearer
-> auth). 139 native tests pass. Remaining work is **hardware validation** and a
-> few cross-board items — see [COMPLETION.md](COMPLETION.md) for the honest
-> audit. See [Roadmap](#roadmap).
+> **Status: v0.7.0.** Both headline features are done and hardened: structured
+> output with **nested schemas**, **vision input across all five providers**,
+> HTTP **keep-alive** + transient-failure **retries**, **usage budgets**,
+> client **metrics**, MCP **blob resources** + **mDNS discovery**, and
+> **Raspberry Pi Pico W** support. Remaining work is **hardware validation**
+> and a few cross-board items — see [COMPLETION.md](COMPLETION.md) for the
+> honest audit. See [Roadmap](#roadmap).
 
 ---
 
@@ -44,16 +46,19 @@ feature stands on verified ground:
 
 | Board family            | Compiles | TLS client | Persistent secrets | Full-duplex |
 |-------------------------|:--------:|:----------:|:------------------:|:-----------:|
-| **ESP32** (reference)   | ✅       | ✅ verified | ✅ NVS             | ✅ FreeRTOS |
+| **ESP32** (reference; S3/C3 too) | ✅ | ✅ verified | ✅ NVS          | ✅ FreeRTOS |
 | ESP8266                 | ✅       | ✅ (1 conn) | ⏳ (RAM)           | ❌ coop      |
+| Raspberry Pi Pico W     | ✅       | ✅ BearSSL³ | ⏳ (RAM)           | ❌ coop      |
 | Arduino Uno R4 WiFi     | ✅       | ⚠️ firmware store¹ | ✅ EEPROM     | ❌ coop      |
 | Nano 33 IoT / MKR (NINA)| ✅       | ⚠️ firmware store¹ | ✅ flash²     | ❌ coop      |
 | Portenta (mbed)         | ✅       | ⚠️ firmware store¹ | ⏳ (RAM)      | ✅ mbed RTOS |
 
-All five compile in CI. ¹ On WiFiNINA / WiFiS3 / mbed boards the trust store
-lives in the WiFi co-processor firmware; per-connection CA pinning is a post-1.0
-item — ESP32 is the fully-validated TLS target. ² SAMD persistence uses the
-`FlashStorage` library (emulated EEPROM).
+All families compile in CI (including ESP32-S3 and -C3 variants). ¹ On WiFiNINA
+/ WiFiS3 / mbed boards the trust store lives in the WiFi co-processor firmware;
+per-connection CA pinning is a post-1.0 item — ESP32 is the fully-validated TLS
+target. ² SAMD persistence uses the `FlashStorage` library (emulated EEPROM).
+³ Pico W uses the arduino-pico (earlephilhower) core, whose BearSSL stack
+mirrors ESP8266 — per-connection CA pinning works the same way there.
 
 > **Verification note:** every board family above is **compile-verified** (the
 > full library + an example build cleanly, including the gnu++11 SAMD toolchain).
@@ -192,6 +197,62 @@ The library uses each provider's **native** structured-output feature (OpenAI
 `format`) and then **validates the result locally**, retrying once on a mismatch.
 Swap the provider line to change backend; everything else stays the same.
 
+### Nested schemas — lists and objects
+
+Describe object shapes with `FieldSpec` and nest them (validation recurses):
+
+```cpp
+edge::FieldSpec item;                                  // shape of one element
+item.field("name", edge::ParamType::String, "product name")
+    .field("qty", edge::ParamType::Integer, "how many");
+
+edge::ResponseSchema schema("extraction");
+schema.arrayField("items", "every item mentioned", item)          // array of objects
+      .arrayField("tags", "labels", edge::ParamType::String)      // array of strings
+      .objectField("meta", "extra data", item, /*required=*/false);
+
+auto r = client.generate(schema, "Extract the order.", customerEmailText);
+// r.value().json() -> {"items":[{"name":"bolt","qty":4},...],"tags":[...]}
+```
+
+The same shapes work for tool parameters: `.paramArray("points", "path", pointShape)`.
+
+### Vision — send an image, get structured JSON back
+
+All five providers accept a base64 image (e.g. an ESP32-CAM JPEG frame):
+
+```cpp
+edge::ResponseSchema schema("scene");
+schema.field("label", edge::ParamType::String, "main object")
+      .field("person_present", edge::ParamType::Boolean, "any person visible?");
+
+auto r = client.generate(schema, "Identify what the camera sees.",
+                         "What is in this image?", jpegBase64, "image/jpeg");
+```
+
+Keep frames small: the base64 string plus the request peak at ~3x its size in
+heap (QVGA is comfortable on a plain ESP32; use PSRAM for larger frames).
+
+### Reliability built in: keep-alive, retries, budgets, metrics
+
+- **Keep-alive** — all requests inside one `generate()`/`run()` call reuse a
+  single TLS connection (each agent round previously paid a multi-second
+  handshake). `client.setPersistentConnection(true)` keeps it open across calls.
+- **Retries** — 429/5xx and transient transport errors back off exponentially
+  (jittered, `Retry-After`-aware). Tune via `client.retryPolicy()`; wire
+  `client.setDelayFn(edge::edgeArduinoDelay)` so waits yield to the scheduler.
+- **Budgets** — attach a `UsageMeter` with request/token caps and calls fail
+  fast with `BudgetExceeded` instead of silently spending money forever.
+- **Metrics** — `client.metrics()` exposes request/retry/error counts, token
+  totals and latency for health reporting (nice to expose over MCP).
+
+```cpp
+edge::UsageMeter meter;
+meter.setMaxRequests(200);          // per boot / until meter.reset()
+client.setUsageMeter(&meter);
+client.setDelayFn(edge::edgeArduinoDelay);
+```
+
 ## Let the model call your device, then answer in structure (agent loop)
 
 ```cpp
@@ -241,6 +302,17 @@ Connect from the [MCP Inspector](https://github.com/modelcontextprotocol/inspect
 host. **Writes are deny-by-default**: a mutating tool stays hidden until you call
 `.allowWrite()`, and the KV write tools require `allowWrites=true`.
 
+More MCP niceties:
+
+- **Zero-config discovery** — `http.advertise("edgellm");` announces
+  `edgellm.local` over mDNS with a `_mcp._tcp` service record (ESP32/ESP8266),
+  so hosts find the device without you reading an IP off the serial monitor.
+- **Binary resources** — mark a resource `.blob()` and return base64 (e.g. a
+  camera frame); it is served in the MCP `blob` field with your mimeType.
+- **React to host writes** — `store.setOnChange([](const std::string& key,
+  bool removed){ ... });` fires whenever an LLM host changes the KV store; and
+  `store.setWithTtl("reading", value, 60000)` stores values that expire.
+
 ## Roadmap
 
 - **Phase 1 — Foundation & Transport** ✅
@@ -253,12 +325,19 @@ host. **Writes are deny-by-default**: a mutating tool stays hidden until you cal
   bearer auth.
 - **Phase 5 — Parity, provisioning & hardening** ✅ — tool calling for **all
   five** providers, Serial provisioning, constant-time auth.
-- **v0.6.0 — Structured output only** ✅ *(this release)* — `generate()` returns
-  schema-validated JSON via each provider's native structured-output feature;
-  free-text chat and streaming removed.
+- **v0.6.0 — Structured output only** ✅ — `generate()` returns schema-validated
+  JSON via each provider's native structured-output feature; free-text chat and
+  streaming removed.
+- **v0.7.0 — Vision, nested schemas & reliability** ✅ *(this release)* — image
+  input across all five providers; nested object/array schemas with recursive
+  validation; HTTP keep-alive + stale-connection replay; transient-failure
+  retries with backoff; `UsageMeter` budgets; `ClientMetrics`; MCP blob
+  resources + mDNS discovery; EdgeStore change hook + TTL; Pico W (RP2040) and
+  ESP32-S3/C3 in the board matrix.
 - **Remaining (post-1.0 candidates):** on-hardware validation, cross-board TLS
-  pinning + persistent backends (Uno R4 / NINA / Portenta), captive-portal
-  provisioning, MCP server-push SSE. See [COMPLETION.md](COMPLETION.md).
+  pinning + persistent backends (ESP8266 / Pico W / NINA / Portenta),
+  captive-portal provisioning, MCP server-push SSE (subscriptions,
+  list-changed, progress). See [COMPLETION.md](COMPLETION.md).
 
 ## Security
 

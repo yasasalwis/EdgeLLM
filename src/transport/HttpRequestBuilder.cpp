@@ -35,7 +35,7 @@ std::string toDecimal(size_t value) {
 }
 }  // namespace
 
-std::string serializeRequest(const HttpRequest& req) {
+std::string serializeRequest(const HttpRequest& req, bool defaultKeepAlive) {
   std::string out;
   // Rough reserve to avoid repeated reallocations on constrained heaps.
   out.reserve(128 + req.body.size());
@@ -73,10 +73,10 @@ std::string serializeRequest(const HttpRequest& req) {
     out += kCrlf;
   }
 
-  // Default to closing the connection after the response: simplest correct
-  // behaviour on memory-constrained boards. Callers wanting keep-alive set it.
+  // Connection default: close (simplest correct behaviour on constrained
+  // boards) unless the caller runs in keep-alive mode or set its own header.
   if (!hasHeader(req, "Connection")) {
-    out += "Connection: close";
+    out += defaultKeepAlive ? "Connection: keep-alive" : "Connection: close";
     out += kCrlf;
   }
 

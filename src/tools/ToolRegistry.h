@@ -12,6 +12,7 @@
 #define EDGELLM_TOOLS_TOOLREGISTRY_H
 
 #include "../core/Result.h"
+#include "FieldSpec.h"
 #include "Tool.h"
 
 namespace edge {
@@ -26,6 +27,15 @@ class ToolBuilder {
                      bool required = true);
   ToolBuilder& paramEnum(const std::string& name, const std::string& description,
                          std::vector<std::string> allowed, bool required = true);
+  // A nested object parameter whose properties are `shape`'s fields.
+  ToolBuilder& paramObject(const std::string& name, const std::string& description,
+                           const FieldSpec& shape, bool required = true);
+  // An array parameter of primitive elements (string/number/integer/boolean).
+  ToolBuilder& paramArray(const std::string& name, const std::string& description,
+                          ParamType itemType, bool required = true);
+  // An array parameter of objects, each matching `itemShape`.
+  ToolBuilder& paramArray(const std::string& name, const std::string& description,
+                          const FieldSpec& itemShape, bool required = true);
   ToolBuilder& mutating(bool value = true);    // mark as a state-changing "write"
   ToolBuilder& allowWrite(bool value = true);  // MCP gate: permit the write
   ToolBuilder& onCall(ToolHandler handler);

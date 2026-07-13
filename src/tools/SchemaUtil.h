@@ -22,9 +22,15 @@ namespace edge {
 void writeObjectSchema(const std::vector<ToolParam>& fields, JsonObject out,
                        bool additionalPropertiesFalse = true);
 
-// Validates a JSON object string against `fields` (required present, types match,
-// string enums respected). Returns SchemaValidationFailed on any mismatch, or on
-// malformed JSON.
+// True if every field — including nested object/array-item fields — is
+// required. OpenAI's strict json_schema mode only accepts such schemas, so the
+// provider downgrades to non-strict (with local validation still applied) when
+// this returns false.
+bool allFieldsRequired(const std::vector<ToolParam>& fields);
+
+// Validates a JSON object string against `fields` (required present, types
+// match, string enums respected — recursively through nested objects and array
+// items). Returns SchemaValidationFailed on any mismatch, or on malformed JSON.
 Status validateObject(const std::vector<ToolParam>& fields, const std::string& json);
 
 }  // namespace edge

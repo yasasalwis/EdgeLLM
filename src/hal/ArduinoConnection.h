@@ -22,6 +22,8 @@
 #include <WiFiClientSecure.h>
 #elif defined(EDGELLM_PLATFORM_ESP8266)
 #include <ESP8266WiFi.h>
+#elif defined(EDGELLM_PLATFORM_RP2040)
+#include <WiFi.h>  // arduino-pico: ESP8266-compatible BearSSL stack
 #elif defined(EDGELLM_PLATFORM_UNO_R4)
 #include <WiFiS3.h>
 #elif defined(EDGELLM_PLATFORM_SAMD)
@@ -36,7 +38,7 @@ namespace edge {
 #if defined(EDGELLM_PLATFORM_ESP32)
 using PlatformSecureClient = WiFiClientSecure;
 using PlatformPlainClient = WiFiClient;
-#elif defined(EDGELLM_PLATFORM_ESP8266)
+#elif defined(EDGELLM_PLATFORM_ESP8266) || defined(EDGELLM_PLATFORM_RP2040)
 using PlatformSecureClient = BearSSL::WiFiClientSecure;
 using PlatformPlainClient = WiFiClient;
 #else
@@ -64,7 +66,7 @@ class ArduinoSecureConnection : public IConnection {
 
   PlatformSecureClient client_;
   CACertStore trust_;
-#if defined(EDGELLM_PLATFORM_ESP8266)
+#if defined(EDGELLM_PLATFORM_ESP8266) || defined(EDGELLM_PLATFORM_RP2040)
   BearSSL::X509List* anchors_ = nullptr;
 #endif
 };

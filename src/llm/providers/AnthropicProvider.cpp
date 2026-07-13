@@ -4,6 +4,29 @@
 
 namespace edge {
 
+namespace {
+// Writes a message's content: a plain string normally, or content blocks
+// (image + optional text) when the message carries an image.
+void writeAnthropicContent(JsonObject o, const Message& m) {
+  if (!m.hasImage()) {
+    o["content"] = m.content;
+    return;
+  }
+  JsonArray content = o["content"].to<JsonArray>();
+  JsonObject img = content.add<JsonObject>();
+  img["type"] = "image";
+  JsonObject src = img["source"].to<JsonObject>();
+  src["type"] = "base64";
+  src["media_type"] = m.imageMime.empty() ? "image/jpeg" : m.imageMime;
+  src["data"] = m.imageBase64;
+  if (!m.content.empty()) {
+    JsonObject text = content.add<JsonObject>();
+    text["type"] = "text";
+    text["text"] = m.content;
+  }
+}
+}  // namespace
+
 Status AnthropicProvider::buildStructuredRequest(const MessageList& messages,
                                                  const ChatOptions& options,
                                                  const ResponseSchema& schema, HttpRequest& out) {
@@ -11,6 +34,12 @@ Status AnthropicProvider::buildStructuredRequest(const MessageList& messages,
   doc["model"] = options.model.empty() ? defaultModel_ : options.model;
   doc["max_tokens"] = options.maxTokens;
   if (options.hasTemperature()) doc["temperature"] = options.temperature;
+  if (options.hasTopP()) doc["top_p"] = options.topP;
+  if (!options.stopSequences.empty()) {
+    JsonArray stops = doc["stop_sequences"].to<JsonArray>();
+    for (const auto& seq : options.stopSequences)
+      stops.add(seq);
+  }
 
   std::string system = options.system;
   for (const auto& m : messages) {
@@ -26,7 +55,7 @@ Status AnthropicProvider::buildStructuredRequest(const MessageList& messages,
     if (m.role == Role::System) continue;
     JsonObject o = arr.add<JsonObject>();
     o["role"] = (m.role == Role::Assistant) ? "assistant" : "user";
-    o["content"] = m.content;
+    writeAnthropicContent(o, m);
   }
 
   // Anthropic has no response_format; structured output is achieved by exposing
@@ -86,6 +115,12 @@ Status AnthropicProvider::buildToolRequest(const MessageList& messages, const Ch
   doc["model"] = options.model.empty() ? defaultModel_ : options.model;
   doc["max_tokens"] = options.maxTokens;
   if (options.hasTemperature()) doc["temperature"] = options.temperature;
+  if (options.hasTopP()) doc["top_p"] = options.topP;
+  if (!options.stopSequences.empty()) {
+    JsonArray stops = doc["stop_sequences"].to<JsonArray>();
+    for (const auto& seq : options.stopSequences)
+      stops.add(seq);
+  }
 
   std::string system = options.system;
   for (const auto& m : messages) {
@@ -149,7 +184,7 @@ Status AnthropicProvider::buildToolRequest(const MessageList& messages, const Ch
     }
     JsonObject o = arr.add<JsonObject>();
     o["role"] = (m.role == Role::Assistant) ? "assistant" : "user";
-    o["content"] = m.content;
+    writeAnthropicContent(o, m);
     ++i;
   }
 

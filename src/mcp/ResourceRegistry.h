@@ -18,8 +18,11 @@ struct Resource {
   std::string name;
   std::string description;
   std::string mimeType = "text/plain";
+  // Binary resource: the handler returns base64-encoded bytes, served to hosts
+  // in the MCP `blob` field instead of `text` (e.g. a camera frame).
+  bool isBlob = false;
   // Produces the resource content. Receives the requested URI (useful when one
-  // handler serves a family of URIs).
+  // handler serves a family of URIs). For blob resources, return base64.
   std::function<Result<std::string>(const std::string& uri)> onRead;
 };
 
@@ -29,6 +32,10 @@ class ResourceBuilder {
  public:
   ResourceBuilder& description(const std::string& text);
   ResourceBuilder& mimeType(const std::string& mime);
+  // Marks this resource as binary: onRead returns base64-encoded bytes, and
+  // resources/read serves them as `blob`. Set a matching mimeType (e.g.
+  // "image/jpeg").
+  ResourceBuilder& blob(bool value = true);
   ResourceBuilder& onRead(std::function<Result<std::string>(const std::string&)> handler);
 
  private:

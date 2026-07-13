@@ -20,6 +20,8 @@
 #include <WiFi.h>
 #elif defined(EDGELLM_PLATFORM_ESP8266)
 #include <ESP8266WiFi.h>
+#elif defined(EDGELLM_PLATFORM_RP2040)
+#include <WiFi.h>
 #elif defined(EDGELLM_PLATFORM_UNO_R4)
 #include <WiFiS3.h>
 #elif defined(EDGELLM_PLATFORM_SAMD)
@@ -39,6 +41,14 @@ class McpHttpServer {
 
   // Starts listening. Call after WiFi is connected.
   void begin() { server_.begin(); }
+
+  // Advertises this endpoint over mDNS/DNS-SD: the device becomes
+  // <hostname>.local with a `_mcp._tcp` service carrying the port and a `path`
+  // TXT record — so hosts on the LAN can find it without knowing the IP.
+  // Supported on ESP32 and ESP8266; returns false on other boards (advertise
+  // manually with your core's mDNS library) or if mDNS failed to start. Call
+  // after WiFi is connected.
+  bool advertise(const char* hostname);
 
   // Services at most one client connection. Call frequently from loop().
   void handle();
@@ -62,6 +72,7 @@ class McpHttpServer {
   uint32_t maxBody_ = 16384;
   uint32_t readTimeoutMs_ = 5000;
   uint32_t authFailDelayMs_ = 500;
+  bool mdnsActive_ = false;
 };
 
 }  // namespace edge

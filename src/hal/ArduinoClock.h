@@ -1,6 +1,8 @@
-// EdgeLLM — millis() adapter for HttpClient's injectable clock.
-// Guarded to Arduino builds. Pass edgeArduinoMillis to HttpClient::setClock so
-// request timeouts are enforced against the real monotonic clock.
+// EdgeLLM — millis()/delay() adapters for the library's injectable clock and
+// delay hooks. Guarded to Arduino builds. Pass edgeArduinoMillis to
+// HttpClient/LLMClient::setClock so timeouts run against the real monotonic
+// clock, and edgeArduinoDelay to LLMClient::setDelayFn so retry backoff yields
+// to the core's scheduler instead of busy-waiting.
 #ifndef EDGELLM_HAL_ARDUINOCLOCK_H
 #define EDGELLM_HAL_ARDUINOCLOCK_H
 
@@ -15,6 +17,7 @@
 namespace edge {
 
 inline uint32_t edgeArduinoMillis() { return static_cast<uint32_t>(millis()); }
+inline void edgeArduinoDelay(uint32_t ms) { delay(ms); }
 
 }  // namespace edge
 

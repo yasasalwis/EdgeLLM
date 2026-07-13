@@ -22,6 +22,39 @@ std::string itos(long v) {
   return s;
 }
 
+// Transport errors that plausibly clear up on a retry. Certificate and
+// protocol-shape failures are deterministic and excluded.
+bool isTransientTransportError(Error e) {
+  switch (e) {
+    case Error::ConnectFailed:
+    case Error::DnsFailed:
+    case Error::TlsHandshakeFailed:
+    case Error::Timeout:
+    case Error::ConnectionClosed:
+    case Error::ReadFailed:
+    case Error::WriteFailed:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool isRetryableStatus(int status) {
+  return status == 429 || status == 500 || status == 502 || status == 503 || status == 504;
+}
+
+// Parses a numeric Retry-After header value (seconds) to milliseconds.
+// HTTP-date form is not supported (needs wall-clock time); returns 0 for it.
+uint32_t parseRetryAfterMs(const std::string& value) {
+  uint32_t seconds = 0;
+  for (char c : value) {
+    if (c < '0' || c > '9') return 0;
+    if (seconds > 4000000u) return 0;  // absurd value; ignore
+    seconds = seconds * 10 + static_cast<uint32_t>(c - '0');
+  }
+  return seconds * 1000u;
+}
+
 // Best-effort extraction of a human-readable error from an API error body.
 std::string extractErrorMessage(const std::string& body) {
   if (body.empty()) return "";
@@ -46,6 +79,98 @@ void LLMClient::configure(HttpClient& http) const {
   http.setClock(clock_);
   http.setTimeout(timeoutMs_);
   http.setMaxResponseBody(maxResponseBody_);
+  // Reuse the connection across the requests of this generate()/run() cycle
+  // (finishRequestCycle() closes it at the end unless persistent).
+  http.setKeepAlive(true);
+}
+
+void LLMClient::finishRequestCycle() {
+  if (!persistentConn_) conn_.stop();
+}
+
+void LLMClient::wait(uint32_t ms) {
+  if (ms == 0) return;
+  if (delayFn_ != nullptr) {
+    delayFn_(ms);
+    return;
+  }
+  if (clock_ == nullptr) return;  // no time source: retry immediately
+  const uint32_t start = clock_();
+  while (clock_() - start < ms) {
+  }
+}
+
+uint32_t LLMClient::backoffFor(uint8_t attempt, const HttpResponse& resp, bool haveResponse) {
+  const RetryPolicy& p = retryPolicy_;
+  // Server-directed wait takes precedence (still capped so a device never
+  // blocks unbounded on someone else's header).
+  if (haveResponse && p.respectRetryAfter) {
+    const std::string* ra = resp.header("Retry-After");
+    if (ra != nullptr) {
+      const uint32_t ms = parseRetryAfterMs(*ra);
+      if (ms > 0) return ms < p.maxBackoffMs ? ms : p.maxBackoffMs;
+    }
+  }
+  uint32_t backoff = p.initialBackoffMs;
+  for (uint8_t i = 0; i < attempt && backoff < p.maxBackoffMs; ++i)
+    backoff *= 2;
+  if (backoff > p.maxBackoffMs) backoff = p.maxBackoffMs;
+  if (p.jitter && backoff > 1) {
+    // Cheap LCG (no <random>, no rand() reseeding concerns): wait a uniform-ish
+    // value in [backoff/2, backoff] so synchronized devices don't stampede.
+    jitterState_ = jitterState_ * 1664525u + 1013904223u;
+    const uint32_t half = backoff / 2;
+    backoff = half + (jitterState_ % (backoff - half + 1));
+  }
+  return backoff;
+}
+
+Status LLMClient::sendWithRetry(HttpClient& http, const HttpRequest& req, HttpResponse& resp) {
+  const RetryPolicy& p = retryPolicy_;
+  Status last = Status::ok();
+  for (uint8_t attempt = 0;; ++attempt) {
+    if (meter_ != nullptr && !meter_->allowRequest()) {
+      if (logger_) logger_->warn("usage budget exhausted; refusing request");
+      return Status::fail(Error::BudgetExceeded);
+    }
+
+    resp = HttpResponse();
+    const uint32_t sentAt = clock_ ? clock_() : 0;
+    last = http.send(req, resp);
+    if (meter_ != nullptr) meter_->recordRequest();
+    ++metrics_.requests;
+    if (clock_) {
+      metrics_.lastLatencyMs = clock_() - sentAt;
+      metrics_.totalLatencyMs += metrics_.lastLatencyMs;
+    }
+
+    bool retryable = false;
+    if (!last.isOk()) {
+      retryable = isTransientTransportError(last.error());
+    } else if (isRetryableStatus(resp.status)) {
+      retryable = true;
+    } else {
+      if (!resp.isSuccess()) ++metrics_.httpErrors;
+      return Status::ok();  // final response (success or a non-retryable status)
+    }
+
+    if (!retryable || attempt >= p.maxRetries) {
+      if (!last.isOk())
+        ++metrics_.transportErrors;
+      else
+        ++metrics_.httpErrors;
+      return last;
+    }
+
+    ++metrics_.retries;
+    const uint32_t backoff = backoffFor(attempt, resp, last.isOk());
+    if (logger_) {
+      logger_->warn(std::string(provider_.name()) + " transient failure (" +
+                    (last.isOk() ? ("http " + itos(resp.status)) : last.message()) +
+                    "), retrying in " + itos(backoff) + " ms");
+    }
+    wait(backoff);
+  }
 }
 
 Error LLMClient::mapStatus(int httpStatus) {
@@ -74,15 +199,16 @@ Result<StructuredResult> LLMClient::doGenerate(const ResponseSchema& schema,
     HttpRequest req;
     Status bs = provider_.buildStructuredRequest(messages, opts, schema, req);
     if (!bs) return Result<StructuredResult>::fail(bs.error());
+    for (const auto& h : opts.extraHeaders)
+      req.setHeader(h.first, h.second);
 
     HttpClient http(conn_, logger_);
     configure(http);
     HttpResponse resp;
-    Status s = http.send(req, resp);
-    conn_.stop();
+    Status s = sendWithRetry(http, req, resp);
 
-    // Transport / HTTP errors are not retried — retrying an auth or rate-limit
-    // failure is pointless.
+    // Whatever survived the retry policy is final: hard transport failures and
+    // non-retryable HTTP statuses (auth, bad request) are returned as-is.
     if (!s) {
       if (logger_) logger_->warn(std::string(provider_.name()) + " request failed: " + s.message());
       return Result<StructuredResult>::fail(s.error());
@@ -99,12 +225,19 @@ Result<StructuredResult> LLMClient::doGenerate(const ResponseSchema& schema,
     Status ps = provider_.parseStructuredResponse(resp, json, meta);
     if (!ps) {
       lastError = ps.error();
+      if (attempt + 1 < attempts) ++metrics_.schemaRetries;
       continue;  // malformed response — retry
     }
+    // Tokens were spent even if validation rejects the output below.
+    metrics_.inputTokens += meta.inputTokens;
+    metrics_.outputTokens += meta.outputTokens;
+    if (meter_ != nullptr) meter_->recordTokens(meta.inputTokens, meta.outputTokens);
+
     Status v = schema.validate(json);
     if (v.isOk()) return Result<StructuredResult>::ok(StructuredResult(std::move(json)));
 
     lastError = Error::SchemaValidationFailed;
+    if (attempt + 1 < attempts) ++metrics_.schemaRetries;
     if (logger_)
       logger_->warn(std::string(provider_.name()) +
                     " output failed schema validation; retrying if attempts remain");
@@ -117,18 +250,35 @@ Result<StructuredResult> LLMClient::generate(const ResponseSchema& schema,
   ChatOptions o = options_;
   if (!system.empty()) o.system = system;
   MessageList m{Message::user(user)};
-  return doGenerate(schema, m, o);
+  Result<StructuredResult> r = doGenerate(schema, m, o);
+  finishRequestCycle();
+  return r;
+}
+
+Result<StructuredResult> LLMClient::generate(const ResponseSchema& schema,
+                                             const std::string& system, const std::string& user,
+                                             const std::string& imageBase64,
+                                             const std::string& imageMime) {
+  ChatOptions o = options_;
+  if (!system.empty()) o.system = system;
+  MessageList m{Message::userWithImage(user, imageBase64, imageMime)};
+  Result<StructuredResult> r = doGenerate(schema, m, o);
+  finishRequestCycle();
+  return r;
 }
 
 Result<StructuredResult> LLMClient::generate(const ResponseSchema& schema,
                                              const MessageList& messages) {
-  return doGenerate(schema, messages, options_);
+  Result<StructuredResult> r = doGenerate(schema, messages, options_);
+  finishRequestCycle();
+  return r;
 }
 
 Result<StructuredResult> LLMClient::generate(const ResponseSchema& schema, Conversation& convo) {
   ChatOptions o = options_;
   if (!convo.system().empty()) o.system = convo.system();
   Result<StructuredResult> r = doGenerate(schema, convo.messages(), o);
+  finishRequestCycle();
   if (r.isOk()) convo.addAssistant(r.value().json());
   return r;
 }
@@ -155,6 +305,14 @@ MessageList flattenForStructured(const MessageList& working) {
 
 Result<StructuredResult> LLMClient::run(const ResponseSchema& schema, const MessageList& messages,
                                         const ToolRegistry& tools) {
+  Result<StructuredResult> r = runImpl(schema, messages, tools);
+  finishRequestCycle();
+  return r;
+}
+
+Result<StructuredResult> LLMClient::runImpl(const ResponseSchema& schema,
+                                            const MessageList& messages,
+                                            const ToolRegistry& tools) {
   if (!provider_.supportsTools()) {
     if (logger_) logger_->warn(std::string(provider_.name()) + " does not support tool calling");
     return Result<StructuredResult>::fail(Error::NotImplemented);
@@ -166,12 +324,13 @@ Result<StructuredResult> LLMClient::run(const ResponseSchema& schema, const Mess
     HttpRequest req;
     Status bs = provider_.buildToolRequest(working, options_, tools, req);
     if (!bs) return Result<StructuredResult>::fail(bs.error());
+    for (const auto& h : options_.extraHeaders)
+      req.setHeader(h.first, h.second);
 
     HttpClient http(conn_, logger_);
     configure(http);
     HttpResponse resp;
-    Status s = http.send(req, resp);
-    conn_.stop();
+    Status s = sendWithRetry(http, req, resp);
     if (!s) return Result<StructuredResult>::fail(s.error());
     if (!resp.isSuccess()) {
       if (logger_)
@@ -183,6 +342,9 @@ Result<StructuredResult> LLMClient::run(const ResponseSchema& schema, const Mess
     AgentTurn turn;
     Status ps = provider_.parseToolResponse(resp, turn);
     if (!ps) return Result<StructuredResult>::fail(ps.error());
+    metrics_.inputTokens += turn.inputTokens;
+    metrics_.outputTokens += turn.outputTokens;
+    if (meter_ != nullptr) meter_->recordTokens(turn.inputTokens, turn.outputTokens);
 
     if (!turn.wantsTools()) {
       settled = true;

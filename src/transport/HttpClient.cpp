@@ -92,19 +92,25 @@ Status HttpClient::writeAll(const std::string& data, uint32_t startMs) {
 
 Status HttpClient::readHeaders(std::string& leftoverBody, HttpResponse& out, uint32_t startMs) {
   std::vector<char> buf(recvBufferSize_);
+  // Start from any bytes a pipelining server delivered with the previous
+  // response; they are the head of this one.
   std::string acc;
+  acc.swap(pending_);
+  if (!acc.empty()) sawResponseBytes_ = true;
   for (;;) {
+    const size_t end = acc.find(kCrlfCrlf);
+    if (end != std::string::npos) {
+      Status s = parseHeaderBlock(acc.substr(0, end + 2), out);
+      if (!s) return s;
+      leftoverBody = acc.substr(end + 4);
+      return Status::ok();
+    }
+    if (acc.size() > kMaxHeaderSection) return Status::fail(Error::HttpMalformed);
+
     const int n = conn_.read(reinterpret_cast<uint8_t*>(buf.data()), buf.size());
     if (n > 0) {
+      sawResponseBytes_ = true;
       acc.append(buf.data(), static_cast<size_t>(n));
-      const size_t end = acc.find(kCrlfCrlf);
-      if (end != std::string::npos) {
-        Status s = parseHeaderBlock(acc.substr(0, end + 2), out);
-        if (!s) return s;
-        leftoverBody = acc.substr(end + 4);
-        return Status::ok();
-      }
-      if (acc.size() > kMaxHeaderSection) return Status::fail(Error::HttpMalformed);
     } else if (n < 0) {
       return Status::fail(Error::HttpMalformed);  // closed before headers completed
     } else {
@@ -149,9 +155,17 @@ Status HttpClient::readBody(const std::string& initial, HttpResponse& out, uint3
     }
     if (want > maxResponseBody_) return Status::fail(Error::HttpBodyTooLarge);
     out.body = initial;
-    if (out.body.size() > want) out.body.resize(want);
+    if (out.body.size() > want) {
+      // Bytes past this body belong to the next response — keep them.
+      pending_ = out.body.substr(want);
+      out.body.resize(want);
+    }
     while (out.body.size() < want) {
-      const int n = conn_.read(reinterpret_cast<uint8_t*>(buf.data()), buf.size());
+      // Never read past this response's body: on a keep-alive connection any
+      // extra bytes would belong to the next response and must stay unread.
+      const size_t room = want - out.body.size();
+      const size_t take = room < buf.size() ? room : buf.size();
+      const int n = conn_.read(reinterpret_cast<uint8_t*>(buf.data()), take);
       if (n > 0) {
         out.body.append(buf.data(), static_cast<size_t>(n));
         if (out.body.size() > want) out.body.resize(want);
@@ -183,9 +197,32 @@ Status HttpClient::readBody(const std::string& initial, HttpResponse& out, uint3
 }
 
 Status HttpClient::send(const HttpRequest& req, HttpResponse& out) {
+  const bool wasOpen = conn_.connected();
+  Status s = sendOnce(req, out);
+
+  // Stale reused connection: the server closed it between requests and we
+  // noticed only after writing. No response bytes were received, so retrying
+  // once on a fresh connection is safe (RFC 7230 §6.3.1).
+  const bool staleError = s.error() == Error::WriteFailed || s.error() == Error::ConnectionClosed ||
+                          s.error() == Error::HttpMalformed;
+  if (!s.isOk() && wasOpen && !sawResponseBytes_ && staleError) {
+    if (logger_) logger_->info("http: reused connection was stale, retrying once");
+    conn_.stop();
+    out = HttpResponse();
+    s = sendOnce(req, out);
+  }
+  return s;
+}
+
+Status HttpClient::sendOnce(const HttpRequest& req, HttpResponse& out) {
   const uint32_t start = now();
+  sawResponseBytes_ = false;
+  reusable_ = false;
 
   if (!conn_.connected()) {
+    // A fresh connection starts a fresh byte stream: leftover bytes from a
+    // previous connection must never prefix this one's response.
+    pending_.clear();
     Status s = conn_.connect(req.host.c_str(), req.port);
     if (!s) {
       if (logger_) logger_->warn(std::string("http connect failed: ") + s.message());
@@ -193,7 +230,7 @@ Status HttpClient::send(const HttpRequest& req, HttpResponse& out) {
     }
   }
 
-  Status s = writeAll(serializeRequest(req), start);
+  Status s = writeAll(serializeRequest(req, keepAlive_), start);
   if (!s) return s;
 
   std::string leftover;
@@ -201,10 +238,26 @@ Status HttpClient::send(const HttpRequest& req, HttpResponse& out) {
   if (!s) return s;
 
   // 1xx, 204 and 304 carry no body by definition.
-  if (out.status == 204 || out.status == 304 || (out.status >= 100 && out.status < 200)) {
-    return Status::ok();
+  const bool hasBody =
+      !(out.status == 204 || out.status == 304 || (out.status >= 100 && out.status < 200));
+  if (hasBody) {
+    s = readBody(leftover, out, start);
+    if (!s) return s;
   }
-  return readBody(leftover, out, start);
+
+  if (keepAlive_) {
+    // The socket can serve another request only if the server did not announce
+    // a close, the body had explicit framing (an until-close body consumed the
+    // connection), and the socket survived.
+    const std::string* connHdr = out.header("Connection");
+    const bool respClose = connHdr != nullptr && containsCaseInsensitive(*connHdr, "close");
+    const std::string* te = out.header("Transfer-Encoding");
+    const bool framed = !hasBody || out.header("Content-Length") != nullptr ||
+                        (te != nullptr && containsCaseInsensitive(*te, "chunked"));
+    reusable_ = !respClose && framed && conn_.connected();
+    if (!reusable_) conn_.stop();
+  }
+  return Status::ok();
 }
 
 Status HttpClient::sendStream(const HttpRequest& req, HttpResponse& outHeaders,

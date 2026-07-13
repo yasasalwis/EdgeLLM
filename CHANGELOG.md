@@ -3,6 +3,76 @@
 All notable changes to EdgeLLM are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow SemVer.
 
+## [0.7.0] — Vision, nested schemas, keep-alive, retries, budgets & Pico W
+
+### Added — LLM client
+- **Image input (vision)** for **all five providers**: attach a base64 image to
+  a user message (`Message::userWithImage(text, b64, mime)`) or call
+  `client.generate(schema, system, user, imageBase64, mime)`. Serialized in
+  each provider's native multimodal format (Anthropic content blocks, OpenAI
+  data-URI `image_url`, Gemini `inline_data`, Ollama `images`) — an ESP32-CAM
+  frame can go straight to a vision model and come back as validated JSON.
+- **Nested schemas**: `FieldSpec` describes object shapes; `ResponseSchema` and
+  `ToolBuilder` gain `objectField(...)` / `arrayField(...)` (arrays of
+  primitives or of objects) / `paramObject(...)` / `paramArray(...)`. The JSON
+  Schema writer emits nested `properties`/`items`, and validation recurses
+  through nested objects and array elements. "Return a list of items with
+  these fields" — the most common extraction shape — now works end-to-end.
+- **Transient-failure retries**: 429/500/502/503/504 and transient transport
+  errors (connect/DNS/TLS/timeout/dropped socket) are retried with exponential
+  backoff + jitter, honoring a numeric `Retry-After`. Tune or disable via
+  `client.retryPolicy()`; wire `setDelayFn(edge::edgeArduinoDelay)` so waits
+  yield to the scheduler. Certificate failures, auth errors and 400s are never
+  retried.
+- **UsageMeter** — spend guard for always-on devices: request and total-token
+  caps; when exhausted, calls fail fast with `Error::BudgetExceeded` (new
+  error code) until `reset()`.
+- **ClientMetrics** — `client.metrics()`: requests, retries, transport/HTTP
+  errors, schema retries, token totals, last/total latency.
+- **ChatOptions**: `topP`, `stopSequences` (serialized natively by all four
+  wire formats) and `extraHeaders` (e.g. OpenRouter attribution) applied to
+  every request.
+
+### Added — transport
+- **HTTP keep-alive**: `LLMClient` now reuses one TLS connection across all the
+  requests inside a `generate()`/`run()` call — every agent-loop round and
+  validation retry previously paid a full TCP+TLS handshake (seconds + a heap
+  spike on ESP32). A stale reused socket (server closed it idle) is detected
+  and replayed once on a fresh connection per RFC 7230 §6.3.1.
+  `setPersistentConnection(true)` keeps it open between calls too.
+- `HttpClient::setKeepAlive` / `connectionReusable`; `serializeRequest` gains a
+  keep-alive default-header variant; the Content-Length body reader can no
+  longer consume bytes belonging to the next response on a reused connection.
+
+### Added — MCP server
+- **Blob resources**: `ResourceBuilder::blob()` marks a resource binary — its
+  handler returns base64 and `resources/read` serves it in the spec's `blob`
+  field (e.g. serve a camera frame to an MCP host).
+- **mDNS discovery**: `McpHttpServer::advertise(hostname)` announces
+  `<hostname>.local` with a `_mcp._tcp` service and the endpoint path in TXT
+  (ESP32 / ESP8266; returns false elsewhere). No more hunting for the IP in
+  the serial monitor.
+- **EdgeStore**: `setOnChange(...)` change hook (react when a host writes a
+  key) and `setWithTtl(...)` expiring entries (lazy eviction, RAM-only, never
+  persisted; a TTL overwrite of a persisted key also drops the stale flash
+  copy).
+
+### Added — boards
+- **Raspberry Pi Pico W (RP2040)** support: platform detection, BearSSL TLS
+  connection (the arduino-pico core mirrors the ESP8266 API), NTP time, and a
+  `pico_w` PlatformIO env in the CI matrix. Persistent secrets on RP2040 are
+  RAM-only for now (like ESP8266).
+- **ESP32-S3 and ESP32-C3** compile-verified via new `esp32s3` / `esp32c3`
+  envs in the CI matrix.
+
+### Fixed
+- **OpenAI strict mode with optional fields**: `strict:true` was always sent,
+  but OpenAI rejects strict schemas whose fields aren't all required. The
+  provider now downgrades to non-strict automatically (local validation still
+  applies) — schemas with optional fields no longer 400.
+- Ollama tool requests now carry the sampling options (`num_predict`,
+  `temperature`, ...) that the structured path already sent.
+
 ## [0.6.1] — Cross-board: Portenta + persistent store for Uno R4 / SAMD
 
 ### Added

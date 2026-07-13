@@ -18,6 +18,25 @@ const char* openAiRole(Role r) {
   }
   return "user";
 }
+
+// Writes a message's content: a plain string normally, or multimodal parts
+// (text + a data-URI image_url) when the message carries an image.
+void writeOpenAiContent(JsonObject o, const Message& m) {
+  if (!m.hasImage()) {
+    o["content"] = m.content;
+    return;
+  }
+  JsonArray content = o["content"].to<JsonArray>();
+  if (!m.content.empty()) {
+    JsonObject text = content.add<JsonObject>();
+    text["type"] = "text";
+    text["text"] = m.content;
+  }
+  JsonObject img = content.add<JsonObject>();
+  img["type"] = "image_url";
+  const std::string mime = m.imageMime.empty() ? "image/jpeg" : m.imageMime;
+  img["image_url"]["url"] = "data:" + mime + ";base64," + m.imageBase64;
+}
 }  // namespace
 
 OpenAIChatProvider::OpenAIChatProvider(std::string apiKey, std::string defaultModel,
@@ -34,6 +53,12 @@ Status OpenAIChatProvider::buildStructuredRequest(const MessageList& messages,
   doc["model"] = options.model.empty() ? defaultModel_ : options.model;
   doc["max_tokens"] = options.maxTokens;
   if (options.hasTemperature()) doc["temperature"] = options.temperature;
+  if (options.hasTopP()) doc["top_p"] = options.topP;
+  if (!options.stopSequences.empty()) {
+    JsonArray stops = doc["stop"].to<JsonArray>();
+    for (const auto& seq : options.stopSequences)
+      stops.add(seq);
+  }
 
   JsonArray arr = doc["messages"].to<JsonArray>();
   if (!options.system.empty()) {
@@ -44,15 +69,17 @@ Status OpenAIChatProvider::buildStructuredRequest(const MessageList& messages,
   for (const auto& m : messages) {
     JsonObject o = arr.add<JsonObject>();
     o["role"] = openAiRole(m.role);
-    o["content"] = m.content;
+    writeOpenAiContent(o, m);
   }
 
-  // Native structured output: strict json_schema response format.
+  // Native structured output: json_schema response format. Strict mode requires
+  // every property (recursively) to be listed in `required`, so schemas with
+  // optional fields are sent non-strict — the client still validates locally.
   JsonObject rf = doc["response_format"].to<JsonObject>();
   rf["type"] = "json_schema";
   JsonObject js = rf["json_schema"].to<JsonObject>();
   js["name"] = schema.name();
-  js["strict"] = true;
+  js["strict"] = schema.strictCompatible();
   JsonObject s = js["schema"].to<JsonObject>();
   schema.writeSchema(s);
 
@@ -90,6 +117,12 @@ Status OpenAIChatProvider::buildToolRequest(const MessageList& messages, const C
   doc["model"] = options.model.empty() ? defaultModel_ : options.model;
   doc["max_tokens"] = options.maxTokens;
   if (options.hasTemperature()) doc["temperature"] = options.temperature;
+  if (options.hasTopP()) doc["top_p"] = options.topP;
+  if (!options.stopSequences.empty()) {
+    JsonArray stops = doc["stop"].to<JsonArray>();
+    for (const auto& seq : options.stopSequences)
+      stops.add(seq);
+  }
 
   JsonArray arr = doc["messages"].to<JsonArray>();
   if (!options.system.empty()) {
@@ -126,7 +159,7 @@ Status OpenAIChatProvider::buildToolRequest(const MessageList& messages, const C
     } else {
       JsonObject o = arr.add<JsonObject>();
       o["role"] = (m.role == Role::Assistant) ? "assistant" : "user";
-      o["content"] = m.content;
+      writeOpenAiContent(o, m);
     }
   }
 

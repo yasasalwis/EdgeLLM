@@ -275,6 +275,7 @@ McpReply McpServer::handlePost(const std::string& body, bool authorized) {
       const std::string u = uri;
       std::string content;
       std::string mime = "text/plain";
+      bool isBlob = false;
       bool found = false;
 
       if (store_ && u.rfind("kv://", 0) == 0) {
@@ -290,6 +291,7 @@ McpReply McpServer::handlePost(const std::string& body, bool authorized) {
           if (r.isOk()) {
             content = r.value();
             mime = res->mimeType;
+            isBlob = res->isBlob;
             found = true;
           }
         }
@@ -304,7 +306,11 @@ McpReply McpServer::handlePost(const std::string& body, bool authorized) {
       JsonObject c = contents.add<JsonObject>();
       c["uri"] = u;
       c["mimeType"] = mime;
-      c["text"] = content;
+      // Binary resources carry base64 in `blob` per the MCP spec; text in `text`.
+      if (isBlob)
+        c["blob"] = content;
+      else
+        c["text"] = content;
       return true;
     }
 

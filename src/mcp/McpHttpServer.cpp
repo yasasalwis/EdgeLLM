@@ -4,6 +4,12 @@
 
 #include <Arduino.h>
 
+#if defined(EDGELLM_PLATFORM_ESP32)
+#include <ESPmDNS.h>
+#elif defined(EDGELLM_PLATFORM_ESP8266)
+#include <ESP8266mDNS.h>
+#endif
+
 namespace edge {
 
 namespace {
@@ -78,7 +84,27 @@ void McpHttpServer::sendResponse(WiFiClient& client, int status, const std::stri
   if (!body.empty()) client.print(body.c_str());
 }
 
+bool McpHttpServer::advertise(const char* hostname) {
+#if defined(EDGELLM_PLATFORM_ESP32) || defined(EDGELLM_PLATFORM_ESP8266)
+  if (hostname == nullptr || hostname[0] == '\0') return false;
+  if (!MDNS.begin(hostname)) return false;
+  MDNS.addService("mcp", "tcp", port_);
+  MDNS.addServiceTxt("mcp", "tcp", "path", path_.c_str());
+  mdnsActive_ = true;
+  return true;
+#else
+  // No portable mDNS responder on this core; advertise with the board's own
+  // mDNS library if it has one.
+  (void)hostname;
+  return false;
+#endif
+}
+
 void McpHttpServer::handle() {
+#if defined(EDGELLM_PLATFORM_ESP8266)
+  // The ESP8266 mDNS responder needs periodic servicing (no background task).
+  if (mdnsActive_) MDNS.update();
+#endif
   WiFiClient client = server_.available();
   if (!client) return;
 
